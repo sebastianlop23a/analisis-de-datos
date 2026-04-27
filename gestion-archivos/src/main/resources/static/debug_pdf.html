@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Depurar carga PDF</title>
+  <style>body{font-family:Segoe UI,Arial;margin:24px}label,button{display:block;margin-top:12px}pre{background:#f6f8fa;padding:12px;border:1px solid #ddd;white-space:pre-wrap}</style>
+</head>
+<body>
+  <h1>Depurar extracción de PDF</h1>
+  <p>Selecciona un PDF y sube al endpoint de diagnóstico. No requiere terminal.</p>
+  <label>Ensayo ID: <input id="ensayoId" type="number" value="8" min="1" /></label>
+  <label>Archivo PDF: <input id="file" type="file" accept="application/pdf" /></label>
+  <button id="upload">Subir y procesar</button>
+  <h2>Respuesta</h2>
+  <pre id="output">Sin acción aún.</pre>
+
+  <script>
+    document.getElementById('upload').addEventListener('click', async () => {
+      const fileInput = document.getElementById('file');
+      const ensayoId = document.getElementById('ensayoId').value || '8';
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Selecciona un archivo PDF primero');
+        return;
+      }
+      const fd = new FormData();
+      fd.append('archivo', fileInput.files[0]);
+
+      const out = document.getElementById('output');
+      out.textContent = 'Subiendo...';
+
+      try {
+        const resp = await fetch('/api/carga/pdf/' + encodeURIComponent(ensayoId), { method: 'POST', body: fd });
+        const contentType = resp.headers.get('content-type') || '';
+        if (contentType.indexOf('application/json') !== -1) {
+          const json = await resp.json();
+          out.textContent = JSON.stringify(json, null, 2);
+        } else {
+          const text = await resp.text();
+          out.textContent = text;
+        }
+      } catch (e) {
+        out.textContent = 'Error: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>

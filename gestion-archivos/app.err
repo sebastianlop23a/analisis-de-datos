@@ -1,0 +1,7 @@
+com.openhtmltopdf.load INFO:: SAX XMLReader in use (parser): com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl$JAXPSAXParser
+com.openhtmltopdf.load INFO:: SAX XMLReader in use (parser): com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl$JAXPSAXParser
+com.openhtmltopdf.load INFO:: El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+com.openhtmltopdf.exception WARNING:: Unhandled exception. Can't load the XML resource (using TRaX transformer). org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto. => javax.xml.transform.TransformerException:: org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+com.openhtmltopdf.load INFO:: SAX XMLReader in use (parser): com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl$JAXPSAXParser
+com.openhtmltopdf.load INFO:: El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+com.openhtmltopdf.exception WARNING:: Unhandled exception. Can't load the XML resource (using TRaX transformer). org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto. => javax.xml.transform.TransformerException:: org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.

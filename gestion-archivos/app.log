@@ -1,0 +1,788 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.1.5)
+
+2025-11-25T14:37:46.862-05:00  INFO 2724 --- [           main] c.s.g.GestionArchivosApplication         : Starting GestionArchivosApplication v1.0.0 using Java 21.0.8 with PID 2724 (C:\Users\sebastisan lopez\Desktop\gestion-archivos\gestion-archivos\target\gestion-archivos-1.0.0.jar started by sebastisan lopez in C:\Users\sebastisan lopez\Desktop\gestion-archivos\gestion-archivos)
+2025-11-25T14:37:46.882-05:00 DEBUG 2724 --- [           main] c.s.g.GestionArchivosApplication         : Running with Spring Boot v3.1.5, Spring v6.0.13
+2025-11-25T14:37:46.884-05:00  INFO 2724 --- [           main] c.s.g.GestionArchivosApplication         : No active profile set, falling back to 1 default profile: "default"
+2025-11-25T14:37:47.768-05:00  INFO 2724 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-11-25T14:37:47.831-05:00  INFO 2724 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 65 ms. Found 3 JPA repository interfaces.
+2025-11-25T14:37:48.641-05:00  INFO 2724 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
+2025-11-25T14:37:48.657-05:00  INFO 2724 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-11-25T14:37:48.657-05:00  INFO 2724 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.15]
+2025-11-25T14:37:48.767-05:00  INFO 2724 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-11-25T14:37:48.775-05:00  INFO 2724 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1810 ms
+2025-11-25T14:37:49.075-05:00  INFO 2724 --- [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-11-25T14:37:49.163-05:00  INFO 2724 --- [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.2.13.Final
+2025-11-25T14:37:49.175-05:00  INFO 2724 --- [           main] org.hibernate.cfg.Environment            : HHH000406: Using bytecode reflection optimizer
+2025-11-25T14:37:49.707-05:00  INFO 2724 --- [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-11-25T14:37:49.744-05:00  WARN 2724 --- [           main] com.zaxxer.hikari.HikariConfig           : HikariPool-1 - idleTimeout is close to or more than maxLifetime, disabling it.
+2025-11-25T14:37:49.744-05:00  INFO 2724 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-11-25T14:37:49.945-05:00  INFO 2724 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@2fb5fe30
+2025-11-25T14:37:49.960-05:00  INFO 2724 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-11-25T14:37:49.976-05:00  WARN 2724 --- [           main] org.hibernate.orm.deprecation            : HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-11-25T14:37:49.976-05:00  WARN 2724 --- [           main] org.hibernate.orm.deprecation            : HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-11-25T14:37:51.224-05:00  INFO 2724 --- [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-11-25T14:37:51.315-05:00  INFO 2724 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-11-25T14:37:51.987-05:00  WARN 2724 --- [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-11-25T14:37:52.156-05:00  INFO 2724 --- [           main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page: class path resource [static/index.html]
+2025-11-25T14:37:52.398-05:00  INFO 2724 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8080 (http) with context path ''
+2025-11-25T14:37:52.423-05:00  INFO 2724 --- [           main] c.s.g.GestionArchivosApplication         : Started GestionArchivosApplication in 6.142 seconds (process running for 6.771)
+2025-11-25T14:37:52.703-05:00  INFO 2724 --- [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-11-25T14:37:52.703-05:00  INFO 2724 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-11-25T14:37:52.703-05:00  INFO 2724 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
+2025-11-25T14:38:36.823-05:00  INFO 2724 --- [nio-8080-exec-2] c.s.g.c.CargaDatosControlador            : Iniciando carga de CSV para ensayo: 2
+2025-11-25T14:38:36.828-05:00  INFO 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Iniciando carga de CSV para ensayo: 2, archivo: CICLO-1-PQ.csv
+2025-11-25T14:38:36.828-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Saltando línea de encabezado: 1
+2025-11-25T14:38:36.828-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Saltando línea de encabezado: 2
+2025-11-25T14:38:36.828-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Saltando línea de encabezado: 3
+2025-11-25T14:38:36.828-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Saltando línea de encabezado: 4
+2025-11-25T14:38:36.828-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=19.6, secuencia=0
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=19.9, secuencia=1
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=20.1, secuencia=2
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=19.4, secuencia=3
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=19.1, secuencia=4
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=19.6, secuencia=5
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=21.0, secuencia=6
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=20.1, secuencia=7
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=25.5, secuencia=8
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=18.7, secuencia=9
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=20.0, secuencia=10
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=23.7, secuencia=11
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=21.2, secuencia=12
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=19.8, secuencia=13
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=18.9, secuencia=14
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=21.3, secuencia=15
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=22.4, secuencia=16
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=21.4, secuencia=17
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=25.7, secuencia=18
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=20.6, secuencia=19
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=23.8, secuencia=20
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=24.5, secuencia=21
+2025-11-25T14:38:36.835-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=21.4, secuencia=22
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=22.8, secuencia=23
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=24.0, secuencia=24
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=28.6, secuencia=25
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=29.0, secuencia=26
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=21.5, secuencia=27
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=30.1, secuencia=28
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=27.7, secuencia=29
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=36.1, secuencia=30
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=54.6, secuencia=31
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=50.5, secuencia=32
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=36.9, secuencia=33
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=37.1, secuencia=34
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=50.0, secuencia=35
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=61.2, secuencia=36
+2025-11-25T14:38:36.844-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=63.4, secuencia=37
+2025-11-25T14:38:36.852-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=50.8, secuencia=38
+2025-11-25T14:38:36.852-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=49.3, secuencia=39
+2025-11-25T14:38:36.852-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=59.9, secuencia=40
+2025-11-25T14:38:36.852-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=67.6, secuencia=41
+2025-11-25T14:38:36.852-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=67.8, secuencia=42
+2025-11-25T14:38:36.855-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=56.3, secuencia=43
+2025-11-25T14:38:36.855-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=59.1, secuencia=44
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=68.8, secuencia=45
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=73.0, secuencia=46
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=74.0, secuencia=47
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=66.7, secuencia=48
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=68.6, secuencia=49
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=78.2, secuencia=50
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=76.1, secuencia=51
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=79.6, secuencia=52
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=78.1, secuencia=53
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=75.1, secuencia=54
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.3, secuencia=55
+2025-11-25T14:38:36.856-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=78.5, secuencia=56
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.1, secuencia=57
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.6, secuencia=58
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=82.8, secuencia=59
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.7, secuencia=60
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=82.1, secuencia=61
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.5, secuencia=62
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.3, secuencia=63
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.0, secuencia=64
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.8, secuencia=65
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.6, secuencia=66
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.5, secuencia=67
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.1, secuencia=68
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.7, secuencia=69
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.0, secuencia=70
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.4, secuencia=71
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.6, secuencia=72
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.7, secuencia=73
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.8, secuencia=74
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.7, secuencia=75
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.5, secuencia=76
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.4, secuencia=77
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.3, secuencia=78
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.2, secuencia=79
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=106.8, secuencia=80
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.0, secuencia=81
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=104.2, secuencia=82
+2025-11-25T14:38:36.860-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=103.8, secuencia=83
+2025-11-25T14:38:36.868-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=104.3, secuencia=84
+2025-11-25T14:38:36.869-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.9, secuencia=85
+2025-11-25T14:38:36.869-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.9, secuencia=86
+2025-11-25T14:38:36.869-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=105.5, secuencia=87
+2025-11-25T14:38:36.869-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=109.6, secuencia=88
+2025-11-25T14:38:36.869-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.0, secuencia=89
+2025-11-25T14:38:36.871-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.5, secuencia=90
+2025-11-25T14:38:36.871-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=106.9, secuencia=91
+2025-11-25T14:38:36.871-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=108.8, secuencia=92
+2025-11-25T14:38:36.871-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.7, secuencia=93
+2025-11-25T14:38:36.871-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=110.2, secuencia=94
+2025-11-25T14:38:36.871-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.8, secuencia=95
+2025-11-25T14:38:36.873-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=109.3, secuencia=96
+2025-11-25T14:38:36.873-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.7, secuencia=97
+2025-11-25T14:38:36.873-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.3, secuencia=98
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.0, secuencia=99
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.4, secuencia=100
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.0, secuencia=101
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.7, secuencia=102
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.9, secuencia=103
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.3, secuencia=104
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.9, secuencia=105
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.8, secuencia=106
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=116.0, secuencia=107
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.9, secuencia=108
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.4, secuencia=109
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.8, secuencia=110
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=116.9, secuencia=111
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.9, secuencia=112
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=123.3, secuencia=113
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.2, secuencia=114
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=123.7, secuencia=115
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.1, secuencia=116
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.2, secuencia=117
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=118
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.4, secuencia=119
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=126.8, secuencia=120
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.4, secuencia=121
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.1, secuencia=122
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.3, secuencia=123
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.1, secuencia=124
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=126.8, secuencia=125
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.5, secuencia=126
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.0, secuencia=127
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.3, secuencia=128
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.1, secuencia=129
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.1, secuencia=130
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.2, secuencia=131
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.3, secuencia=132
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.1, secuencia=133
+2025-11-25T14:38:36.875-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.6, secuencia=134
+2025-11-25T14:38:36.884-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=125.7, secuencia=135
+2025-11-25T14:38:36.884-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.7, secuencia=136
+2025-11-25T14:38:36.884-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.6, secuencia=137
+2025-11-25T14:38:36.884-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.9, secuencia=138
+2025-11-25T14:38:36.885-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=139
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.5, secuencia=140
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.0, secuencia=141
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.0, secuencia=142
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.8, secuencia=143
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.0, secuencia=144
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=125.7, secuencia=145
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.9, secuencia=146
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.5, secuencia=147
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.6, secuencia=148
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.0, secuencia=149
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=123.9, secuencia=150
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.2, secuencia=151
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.6, secuencia=152
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.3, secuencia=153
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.2, secuencia=154
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.8, secuencia=155
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=156
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.5, secuencia=157
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.8, secuencia=158
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=116.8, secuencia=159
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=126.0, secuencia=160
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.0, secuencia=161
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.9, secuencia=162
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.1, secuencia=163
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.0, secuencia=164
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.2, secuencia=165
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.8, secuencia=166
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.6, secuencia=167
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.6, secuencia=168
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.4, secuencia=169
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=128.1, secuencia=170
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.8, secuencia=171
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.3, secuencia=172
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.5, secuencia=173
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.4, secuencia=174
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=125.9, secuencia=175
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.8, secuencia=176
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.8, secuencia=177
+2025-11-25T14:38:36.886-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.9, secuencia=178
+2025-11-25T14:38:36.900-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=179
+2025-11-25T14:38:36.900-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.9, secuencia=180
+2025-11-25T14:38:36.901-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.0, secuencia=181
+2025-11-25T14:38:36.901-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.1, secuencia=182
+2025-11-25T14:38:36.901-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.6, secuencia=183
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=116.7, secuencia=184
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.7, secuencia=185
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.3, secuencia=186
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.4, secuencia=187
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.7, secuencia=188
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.1, secuencia=189
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.1, secuencia=190
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=191
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.8, secuencia=192
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.7, secuencia=193
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.3, secuencia=194
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=128.3, secuencia=195
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.9, secuencia=196
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.4, secuencia=197
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.7, secuencia=198
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.1, secuencia=199
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=126.9, secuencia=200
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.5, secuencia=201
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.9, secuencia=202
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.3, secuencia=203
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.9, secuencia=204
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.1, secuencia=205
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=206
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.1, secuencia=207
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.9, secuencia=208
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.5, secuencia=209
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.0, secuencia=210
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.7, secuencia=211
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.4, secuencia=212
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.5, secuencia=213
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.2, secuencia=214
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.0, secuencia=215
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=216
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.8, secuencia=217
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.7, secuencia=218
+2025-11-25T14:38:36.902-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.2, secuencia=219
+2025-11-25T14:38:36.915-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.3, secuencia=220
+2025-11-25T14:38:36.916-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.2, secuencia=221
+2025-11-25T14:38:36.916-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.5, secuencia=222
+2025-11-25T14:38:36.916-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.9, secuencia=223
+2025-11-25T14:38:36.916-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.5, secuencia=224
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=125.1, secuencia=225
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.5, secuencia=226
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.1, secuencia=227
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.5, secuencia=228
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.5, secuencia=229
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=127.2, secuencia=230
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.0, secuencia=231
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.8, secuencia=232
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.3, secuencia=233
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.7, secuencia=234
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=126.9, secuencia=235
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.6, secuencia=236
+2025-11-25T14:38:36.918-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.9, secuencia=237
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.8, secuencia=238
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.3, secuencia=239
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=128.0, secuencia=240
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.5, secuencia=241
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.3, secuencia=242
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=123.6, secuencia=243
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.0, secuencia=244
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=125.3, secuencia=245
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.7, secuencia=246
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.1, secuencia=247
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.9, secuencia=248
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.2, secuencia=249
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=126.7, secuencia=250
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.3, secuencia=251
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.9, secuencia=252
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.5, secuencia=253
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.9, secuencia=254
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.9, secuencia=255
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.4, secuencia=256
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=122.0, secuencia=257
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.4, secuencia=258
+2025-11-25T14:38:36.923-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.0, secuencia=259
+2025-11-25T14:38:36.931-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=128.3, secuencia=260
+2025-11-25T14:38:36.931-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.8, secuencia=261
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.8, secuencia=262
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.7, secuencia=263
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.9, secuencia=264
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.1, secuencia=265
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.3, secuencia=266
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=121.8, secuencia=267
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.7, secuencia=268
+2025-11-25T14:38:36.935-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.2, secuencia=269
+2025-11-25T14:38:36.939-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=123.8, secuencia=270
+2025-11-25T14:38:36.939-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.8, secuencia=271
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.4, secuencia=272
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.4, secuencia=273
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.3, secuencia=274
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=124.0, secuencia=275
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=116.7, secuencia=276
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.5, secuencia=277
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=117.6, secuencia=278
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.5, secuencia=279
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=120.3, secuencia=280
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.6, secuencia=281
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=116.1, secuencia=282
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.4, secuencia=283
+2025-11-25T14:38:36.940-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.4, secuencia=284
+2025-11-25T14:38:36.946-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=118.3, secuencia=285
+2025-11-25T14:38:36.946-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.0, secuencia=286
+2025-11-25T14:38:36.946-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.8, secuencia=287
+2025-11-25T14:38:36.946-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.3, secuencia=288
+2025-11-25T14:38:36.946-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.2, secuencia=289
+2025-11-25T14:38:36.946-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=119.1, secuencia=290
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.2, secuencia=291
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.9, secuencia=292
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.0, secuencia=293
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=106.9, secuencia=294
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=115.3, secuencia=295
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=110.2, secuencia=296
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=112.0, secuencia=297
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=108.4, secuencia=298
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=108.6, secuencia=299
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=114.0, secuencia=300
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=108.9, secuencia=301
+2025-11-25T14:38:36.948-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=110.6, secuencia=302
+2025-11-25T14:38:36.952-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=106.9, secuencia=303
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.2, secuencia=304
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=111.1, secuencia=305
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.0, secuencia=306
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=109.4, secuencia=307
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=108.7, secuencia=308
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=108.7, secuencia=309
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=113.4, secuencia=310
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.0, secuencia=311
+2025-11-25T14:38:36.953-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.6, secuencia=312
+2025-11-25T14:38:36.955-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.8, secuencia=313
+2025-11-25T14:38:36.955-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=102.2, secuencia=314
+2025-11-25T14:38:36.957-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=110.7, secuencia=315
+2025-11-25T14:38:36.957-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=105.7, secuencia=316
+2025-11-25T14:38:36.957-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=106.5, secuencia=317
+2025-11-25T14:38:36.957-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=108.9, secuencia=318
+2025-11-25T14:38:36.957-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=103.1, secuencia=319
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=109.5, secuencia=320
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=104.6, secuencia=321
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=105.3, secuencia=322
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.6, secuencia=323
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=102.1, secuencia=324
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=107.6, secuencia=325
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=103.2, secuencia=326
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=104.6, secuencia=327
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=105.0, secuencia=328
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=102.3, secuencia=329
+2025-11-25T14:38:36.961-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=105.9, secuencia=330
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=102.0, secuencia=331
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=103.6, secuencia=332
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=103.4, secuencia=333
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=102.4, secuencia=334
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=105.9, secuencia=335
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.6, secuencia=336
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=102.4, secuencia=337
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=105.4, secuencia=338
+2025-11-25T14:38:36.965-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.7, secuencia=339
+2025-11-25T14:38:36.969-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=103.3, secuencia=340
+2025-11-25T14:38:36.969-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.9, secuencia=341
+2025-11-25T14:38:36.969-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.7, secuencia=342
+2025-11-25T14:38:36.969-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.1, secuencia=343
+2025-11-25T14:38:36.969-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.3, secuencia=344
+2025-11-25T14:38:36.969-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=103.5, secuencia=345
+2025-11-25T14:38:36.971-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.7, secuencia=346
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=100.7, secuencia=347
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=102.5, secuencia=348
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.4, secuencia=349
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.0, secuencia=350
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.5, secuencia=351
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=100.2, secuencia=352
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.7, secuencia=353
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.3, secuencia=354
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.3, secuencia=355
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=97.8, secuencia=356
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.8, secuencia=357
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=100.0, secuencia=358
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.8, secuencia=359
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.9, secuencia=360
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.8, secuencia=361
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=98.5, secuencia=362
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=97.0, secuencia=363
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=97.8, secuencia=364
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=101.2, secuencia=365
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.7, secuencia=366
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.8, secuencia=367
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=97.1, secuencia=368
+2025-11-25T14:38:36.973-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.3, secuencia=369
+2025-11-25T14:38:36.982-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.0, secuencia=370
+2025-11-25T14:38:36.982-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.9, secuencia=371
+2025-11-25T14:38:36.982-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.5, secuencia=372
+2025-11-25T14:38:36.982-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.8, secuencia=373
+2025-11-25T14:38:36.983-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.5, secuencia=374
+2025-11-25T14:38:36.983-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=99.5, secuencia=375
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.4, secuencia=376
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.5, secuencia=377
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.6, secuencia=378
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.0, secuencia=379
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.5, secuencia=380
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.7, secuencia=381
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.5, secuencia=382
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=94.4, secuencia=383
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.7, secuencia=384
+2025-11-25T14:38:36.985-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=96.0, secuencia=385
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.1, secuencia=386
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=94.3, secuencia=387
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=94.3, secuencia=388
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.4, secuencia=389
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=97.1, secuencia=390
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.9, secuencia=391
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.0, secuencia=392
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.9, secuencia=393
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.9, secuencia=394
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.6, secuencia=395
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.6, secuencia=396
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.7, secuencia=397
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.5, secuencia=398
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.2, secuencia=399
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=95.5, secuencia=400
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.9, secuencia=401
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.9, secuencia=402
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.9, secuencia=403
+2025-11-25T14:38:36.989-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.9, secuencia=404
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=93.6, secuencia=405
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.8, secuencia=406
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.6, secuencia=407
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.9, secuencia=408
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.9, secuencia=409
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=94.5, secuencia=410
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.3, secuencia=411
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.6, secuencia=412
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.3, secuencia=413
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.0, secuencia=414
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.1, secuencia=415
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.2, secuencia=416
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.0, secuencia=417
+2025-11-25T14:38:36.997-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.7, secuencia=418
+2025-11-25T14:38:37.001-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.2, secuencia=419
+2025-11-25T14:38:37.002-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.9, secuencia=420
+2025-11-25T14:38:37.002-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.5, secuencia=421
+2025-11-25T14:38:37.002-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.9, secuencia=422
+2025-11-25T14:38:37.002-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.6, secuencia=423
+2025-11-25T14:38:37.002-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.7, secuencia=424
+2025-11-25T14:38:37.002-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=92.7, secuencia=425
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.8, secuencia=426
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.5, secuencia=427
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.0, secuencia=428
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.0, secuencia=429
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.8, secuencia=430
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.7, secuencia=431
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.7, secuencia=432
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.2, secuencia=433
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.2, secuencia=434
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.7, secuencia=435
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.8, secuencia=436
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.5, secuencia=437
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=90.1, secuencia=438
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.0, secuencia=439
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.4, secuencia=440
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.9, secuencia=441
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.5, secuencia=442
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.2, secuencia=443
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.9, secuencia=444
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=91.6, secuencia=445
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.1, secuencia=446
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.8, secuencia=447
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.8, secuencia=448
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.3, secuencia=449
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.9, secuencia=450
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.7, secuencia=451
+2025-11-25T14:38:37.004-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.8, secuencia=452
+2025-11-25T14:38:37.013-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.7, secuencia=453
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.2, secuencia=454
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=89.0, secuencia=455
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.3, secuencia=456
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.7, secuencia=457
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.2, secuencia=458
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.9, secuencia=459
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.8, secuencia=460
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.3, secuencia=461
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.9, secuencia=462
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.8, secuencia=463
+2025-11-25T14:38:37.014-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.1, secuencia=464
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.7, secuencia=465
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=83.4, secuencia=466
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.9, secuencia=467
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.9, secuencia=468
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.3, secuencia=469
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=88.0, secuencia=470
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=83.3, secuencia=471
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.9, secuencia=472
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.6, secuencia=473
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.1, secuencia=474
+2025-11-25T14:38:37.019-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=87.4, secuencia=475
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=82.8, secuencia=476
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.5, secuencia=477
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=83.6, secuencia=478
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=83.8, secuencia=479
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.5, secuencia=480
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=81.5, secuencia=481
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.0, secuencia=482
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.5, secuencia=483
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=84.5, secuencia=484
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.2, secuencia=485
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=81.8, secuencia=486
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.1, secuencia=487
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=83.4, secuencia=488
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=83.9, secuencia=489
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=86.5, secuencia=490
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=81.9, secuencia=491
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=83.3, secuencia=492
+2025-11-25T14:38:37.023-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=85.8, secuencia=493
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=81.6, secuencia=494
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=74.3, secuencia=495
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=44.2, secuencia=496
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=50.4, secuencia=497
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=50.2, secuencia=498
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=51.4, secuencia=499
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=58.9, secuencia=500
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=30.8, secuencia=501
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=38.7, secuencia=502
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=44.6, secuencia=503
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=44.9, secuencia=504
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=50.0, secuencia=505
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=25.7, secuencia=506
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=30.9, secuencia=507
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=43.2, secuencia=508
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=44.6, secuencia=509
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=46.3, secuencia=510
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=26.5, secuencia=511
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=27.3, secuencia=512
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=40.8, secuencia=513
+2025-11-25T14:38:37.038-05:00 DEBUG 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : Dato agregado: valor=42.5, secuencia=514
+2025-11-25T14:38:37.038-05:00  INFO 2724 --- [nio-8080-exec-2] c.s.g.servicios.CargaDatosServicio       : CSV cargado exitosamente: 515 registros procesados
+2025-11-25T14:38:37.038-05:00  INFO 2724 --- [nio-8080-exec-2] c.s.g.c.CargaDatosControlador            : CSV cargado exitosamente: 515 registros
+2025-11-25T14:38:49.519-05:00  INFO 2724 --- [nio-8080-exec-1] c.s.g.controladores.ReporteControlador   : Download PDF request for ensayoId=2
+2025-11-25T14:38:49.878-05:00  WARN 2724 --- [nio-8080-exec-1] o.a.p.p.font.FileSystemFontProvider      : New fonts found, font cache will be re-built
+2025-11-25T14:38:49.878-05:00  WARN 2724 --- [nio-8080-exec-1] o.a.p.p.font.FileSystemFontProvider      : Building on-disk font cache, this may take a while
+2025-11-25T14:38:49.950-05:00  WARN 2724 --- [nio-8080-exec-1] o.a.p.p.font.FileSystemFontProvider      : Could not load font file: C:\Windows\FONTS\mstmc.ttf
+
+java.io.EOFException: null
+	at org.apache.fontbox.ttf.TTFDataStream.readUnsignedInt(TTFDataStream.java:151) ~[fontbox-2.0.24.jar!/:2.0.24]
+	at org.apache.fontbox.ttf.TTFParser.readTableDirectory(TTFParser.java:312) ~[fontbox-2.0.24.jar!/:2.0.24]
+	at org.apache.fontbox.ttf.TTFParser.parse(TTFParser.java:139) ~[fontbox-2.0.24.jar!/:2.0.24]
+	at org.apache.fontbox.ttf.TTFParser.parse(TTFParser.java:87) ~[fontbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FileSystemFontProvider.addTrueTypeFont(FileSystemFontProvider.java:657) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FileSystemFontProvider.scanFonts(FileSystemFontProvider.java:379) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FileSystemFontProvider.<init>(FileSystemFontProvider.java:358) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl$DefaultFontProvider.<clinit>(FontMapperImpl.java:140) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.getProvider(FontMapperImpl.java:159) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.findFont(FontMapperImpl.java:423) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.findFontBoxFont(FontMapperImpl.java:386) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.getFontBoxFont(FontMapperImpl.java:360) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.PDType1Font.<init>(PDType1Font.java:146) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at org.apache.pdfbox.pdmodel.font.PDType1Font.<clinit>(PDType1Font.java:79) ~[pdfbox-2.0.24.jar!/:2.0.24]
+	at com.openhtmltopdf.pdfboxout.fontstore.AbstractFontStore$BuiltinFontStore.addCourier(AbstractFontStore.java:55) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.fontstore.AbstractFontStore$BuiltinFontStore.createInitialFontMap(AbstractFontStore.java:43) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.fontstore.AbstractFontStore$BuiltinFontStore.<init>(AbstractFontStore.java:38) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfBoxFontResolver.<init>(PdfBoxFontResolver.java:82) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfBoxRenderer.<init>(PdfBoxRenderer.java:204) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfRendererBuilder.buildPdfRenderer(PdfRendererBuilder.java:69) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfRendererBuilder.run(PdfRendererBuilder.java:44) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.sivco.gestion_archivos.utilidades.PdfUtil.htmlToPdfBytes(PdfUtil.java:29) ~[classes!/:1.0.0]
+	at com.sivco.gestion_archivos.controladores.ReporteControlador.descargarReportePdf(ReporteControlador.java:158) ~[classes!/:1.0.0]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+2025-11-25T14:38:50.041-05:00  WARN 2724 --- [nio-8080-exec-1] o.a.p.p.font.FileSystemFontProvider      : Finished building on-disk font cache, found 404 fonts
+2025-11-25T14:38:50.233-05:00 ERROR 2724 --- [nio-8080-exec-1] c.s.g.controladores.ReporteControlador   : PDF generation failed for ensayoId=2: com.openhtmltopdf.util.XRRuntimeException: Can't load the XML resource (using TRaX transformer). org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+
+com.openhtmltopdf.util.XRRuntimeException: Can't load the XML resource (using TRaX transformer). org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+	at com.openhtmltopdf.resource.XMLResource$XMLResourceBuilder.createXMLResource(XMLResource.java:254) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	at com.openhtmltopdf.resource.XMLResource$XMLResourceBuilder.access$100(XMLResource.java:145) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	at com.openhtmltopdf.resource.XMLResource.load(XMLResource.java:71) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfBoxRenderer.setDocumentFromStringP(PdfBoxRenderer.java:316) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfBoxRenderer.<init>(PdfBoxRenderer.java:256) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfRendererBuilder.buildPdfRenderer(PdfRendererBuilder.java:69) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfRendererBuilder.run(PdfRendererBuilder.java:44) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.sivco.gestion_archivos.utilidades.PdfUtil.htmlToPdfBytes(PdfUtil.java:29) ~[classes!/:1.0.0]
+	at com.sivco.gestion_archivos.controladores.ReporteControlador.descargarReportePdf(ReporteControlador.java:158) ~[classes!/:1.0.0]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: javax.xml.transform.TransformerException: org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transform(TransformerImpl.java:793) ~[na:na]
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transform(TransformerImpl.java:395) ~[na:na]
+	at com.openhtmltopdf.resource.XMLResource$XMLResourceBuilder.createXMLResource(XMLResource.java:251) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	... 56 common frames omitted
+Caused by: org.xml.sax.SAXParseException: El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+	at java.xml/com.sun.org.apache.xerces.internal.parsers.AbstractSAXParser.parse(AbstractSAXParser.java:1251) ~[na:na]
+	at java.xml/com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl$JAXPSAXParser.parse(SAXParserImpl.java:637) ~[na:na]
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transformIdentity(TransformerImpl.java:694) ~[na:na]
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transform(TransformerImpl.java:781) ~[na:na]
+	... 58 common frames omitted
+
+2025-11-25T14:38:55.309-05:00  INFO 2724 --- [nio-8080-exec-7] c.s.g.controladores.ReporteControlador   : Download HTML request for ensayoId=2
+2025-11-25T14:40:24.738-05:00  INFO 2724 --- [nio-8080-exec-4] c.s.g.controladores.ReporteControlador   : Download PDF request for ensayoId=2
+2025-11-25T14:40:24.771-05:00 ERROR 2724 --- [nio-8080-exec-4] c.s.g.controladores.ReporteControlador   : PDF generation failed for ensayoId=2: com.openhtmltopdf.util.XRRuntimeException: Can't load the XML resource (using TRaX transformer). org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+
+com.openhtmltopdf.util.XRRuntimeException: Can't load the XML resource (using TRaX transformer). org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+	at com.openhtmltopdf.resource.XMLResource$XMLResourceBuilder.createXMLResource(XMLResource.java:254) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	at com.openhtmltopdf.resource.XMLResource$XMLResourceBuilder.access$100(XMLResource.java:145) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	at com.openhtmltopdf.resource.XMLResource.load(XMLResource.java:71) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfBoxRenderer.setDocumentFromStringP(PdfBoxRenderer.java:316) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfBoxRenderer.<init>(PdfBoxRenderer.java:256) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfRendererBuilder.buildPdfRenderer(PdfRendererBuilder.java:69) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.openhtmltopdf.pdfboxout.PdfRendererBuilder.run(PdfRendererBuilder.java:44) ~[openhtmltopdf-pdfbox-1.0.10.jar!/:na]
+	at com.sivco.gestion_archivos.utilidades.PdfUtil.htmlToPdfBytes(PdfUtil.java:29) ~[classes!/:1.0.0]
+	at com.sivco.gestion_archivos.controladores.ReporteControlador.descargarReportePdf(ReporteControlador.java:158) ~[classes!/:1.0.0]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:884) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:797) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1081) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:974) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1011) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.0.13.jar!/:6.0.13]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.0.13.jar!/:6.0.13]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.15.jar!/:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: javax.xml.transform.TransformerException: org.xml.sax.SAXParseException; lineNumber: 1; columnNumber: 41; El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transform(TransformerImpl.java:793) ~[na:na]
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transform(TransformerImpl.java:395) ~[na:na]
+	at com.openhtmltopdf.resource.XMLResource$XMLResourceBuilder.createXMLResource(XMLResource.java:251) ~[openhtmltopdf-core-1.0.10.jar!/:na]
+	... 56 common frames omitted
+Caused by: org.xml.sax.SAXParseException: El marcador en el documento que precede al elemento raíz debe tener el formato correcto.
+	at java.xml/com.sun.org.apache.xerces.internal.parsers.AbstractSAXParser.parse(AbstractSAXParser.java:1251) ~[na:na]
+	at java.xml/com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl$JAXPSAXParser.parse(SAXParserImpl.java:637) ~[na:na]
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transformIdentity(TransformerImpl.java:694) ~[na:na]
+	at java.xml/com.sun.org.apache.xalan.internal.xsltc.trax.TransformerImpl.transform(TransformerImpl.java:781) ~[na:na]
+	... 58 common frames omitted
+
+2025-11-25T14:40:47.387-05:00  INFO 2724 --- [nio-8080-exec-8] c.s.g.controladores.ReporteControlador   : Download HTML request for ensayoId=2
+2025-11-25T14:42:50.067-05:00  INFO 2724 --- [nio-8080-exec-2] c.s.g.controladores.ReporteControlador   : Download HTML request for ensayoId=2

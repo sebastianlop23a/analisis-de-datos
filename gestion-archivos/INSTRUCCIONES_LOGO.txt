@@ -1,0 +1,14 @@
+INSTRUCCIONES PARA AGREGAR EL LOGO SIVCO
+==========================================
+
+Por favor, guarda la imagen del logo de SIVCO como:
+
+Ruta: c:\Users\sebastisan lopez\Desktop\gestion-archivos\gestion-archivos\src\main\resources\static\images\logo-sivco.png
+
+Nombre del archivo: logo-sivco.png
+
+Una vez guardada, el sistema la incluirá automáticamente en:
+- El encabezado de todos los PDFs generados
+- La interfaz web del sistema
+
+El logo aparecerá en la esquina superior izquierda de cada página del reporte PDF.

@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Ensayos - Sistema SIVCO</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/1.2.1/chartjs-plugin-zoom.min.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-logo">
+               <img src="images/ChatGPT Image 25 ene 2026, 17_36_04.png"SIVCO Logo" class="logo-image"width="230 " height="150">
+            </div>
+            <div class="navbar-menu">
+                <a href="#dashboard" class="nav-item active" data-section="dashboard">Dashboard</a>
+                <a href="#maquinas" class="nav-item" data-section="maquinas">Máquinas</a>
+                <a href="#sensores" class="nav-item" data-section="sensores">Sensores</a>
+                <a href="#ensayos" class="nav-item" data-section="ensayos">Ensayos</a>
+                <a href="#analisis" class="nav-item" data-section="analisis">Análisis</a>
+                <a href="#reportes" class="nav-item" data-section="reportes">Reportes</a>
+                <a href="#configuracion" class="nav-item" data-section="configuracion">Configuración</a>
+            </div>
+            <div class="navbar-status">
+                <span id="statusApi" class="status-badge">● Conectando...</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section active">
+            <h1>Dashboard</h1>
+            
+            <div class="dashboard-grid">
+                <div class="dashboard-card card-primary">
+                    <div class="card-icon">🏭</div>
+                    <h3>Máquinas Activas</h3>
+                    <p class="dashboard-number" id="countMaquinas">-</p>
+                    <small id="countMaquinasDetalle">-</small>
+                </div>
+                <div class="dashboard-card card-warning">
+                    <div class="card-icon">⏳</div>
+                    <h3>Ensayos en Progreso</h3>
+                    <p class="dashboard-number" id="countEnsayosProgreso">-</p>
+                    <small id="countEnsayosProgresoDetalle">-</small>
+                </div>
+                <div class="dashboard-card card-success">
+                    <div class="card-icon">✓</div>
+                    <h3>Ensayos Completados</h3>
+                    <p class="dashboard-number" id="countEnsayosCompletados">-</p>
+                    <small id="countEnsayosCompletadosDetalle">-</small>
+                </div>
+                <div class="dashboard-card card-info">
+                    <div class="card-icon">📊</div>
+                    <h3>Total Reportes</h3>
+                    <p class="dashboard-number" id="countReportes">-</p>
+                    <small id="countReportesDetalle">-</small>
+                </div>
+                <div class="dashboard-card card-purple">
+                    <div class="card-icon">📡</div>
+                    <h3>Sensores Registrados</h3>
+                    <p class="dashboard-number" id="countSensores">-</p>
+                    <small id="countSensoresDetalle">-</small>
+                </div>
+                <div class="dashboard-card card-turquoise">
+                    <div class="card-icon">📈</div>
+                    <h3>Datos Capturados</h3>
+                    <p class="dashboard-number" id="countDatos">-</p>
+                    <small id="countDatosDetalle">Últimas 24h</small>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="chart-container interactive-chart">
+                    <h3>Ensayos por Estado</h3>
+                    <canvas id="chartEstados"></canvas>
+                </div>
+                <div class="chart-container interactive-chart">
+                    <h3>Datos por Máquina</h3>
+                    <canvas id="chartMaquinas"></canvas>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="chart-container interactive-chart">
+                    <h3>Actividad por Hora</h3>
+                    <canvas id="chartActividad"></canvas>
+                </div>
+                <div class="chart-container interactive-chart">
+                    <h3>Rendimiento de Máquinas</h3>
+                    <canvas id="chartRendimiento"></canvas>
+                </div>
+            </div>
+
+            <div class="alert-box">
+                <h3>Sistema Info</h3>
+                <div id="systemInfo">
+                    <p>Cargando información del sistema...</p>
+                </div>
+            </div>
+
+            <div class="recent-activity">
+                <h3>Actividad Reciente</h3>
+                <div id="actividadReciente">
+                    <p class="loading">Cargando actividad...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Máquinas Section -->
+        <section id="maquinas" class="section">
+            <h1>Gestión de Máquinas</h1>
+            <div class="form-section">
+                <h2>Crear Nueva Máquina</h2>
+                <form id="formMaquina" class="form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre *</label>
+                            <input type="text" id="maquinaNombre" placeholder="Ej: Horno A1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo *</label>
+                            <input type="text" id="maquinaTipo" placeholder="Ej: Horno, Cámara Térmica" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Valor mínimo permitido *</label>
+                            <input type="number" id="maquinaLimiteInf" placeholder="20" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor máximo permitido*</label>
+                            <input type="number" id="maquinaLimiteSup" placeholder="150" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Unidad Medida *</label>
+                            <input type="text" id="maquinaUnidad" placeholder="°C" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <input type="text" id="maquinaDescripcion" placeholder="Descripción opcional">
+                        </div>
+                        <div class="form-group">
+                            <label>Ubicación</label>
+                            <input type="text" id="maquinaUbicacion" placeholder="Lab 1">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="maquinaCalcularFH">
+                                Calcular Factor Histórico (FH)
+                            </label>
+
+                        </div>
+                        <div class="form-group">
+                            <label>Parámetro Z (para FH)</label>
+                            <input type="number" id="maquinaParametroZ" placeholder="14.0" step="0.1" value="14.0">
+                            <small style="display: block; color: #666; margin-top: 5px;">
+                                Típicamente: 14 (valor por defecto)
+                            </small>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Crear Máquina</button>
+                </form>
+            </div>
+
+            <div class="list-section">
+                <h2>Máquinas Registradas</h2>
+                <div id="maquinasList" class="items-list">
+                    <p class="loading">Cargando máquinas...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sensores Section -->
+        <section id="sensores" class="section">
+            <h1>Gestión de Sensores</h1>
+
+            <div class="form-section">
+                <h2>Registrar Nuevo Sensor (subir calibración obligatoria)</h2>
+                <form id="formSensor" class="form" enctype="multipart/form-data">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Código *</label>
+                            <input type="text" id="sensorCodigo" placeholder="Ej: S001" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Sonda *</label>
+                            <select id="sensorTipoSonda" required>
+                                <option value="">Selecciona...</option>
+                                <option value="PT100">PT100</option>
+                                <option value="Termopar K">Termopar K</option>
+                                <option value="RTD">RTD</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- campos `modelo` y `fabricante` eliminados del formulario -->
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Frecuencia Calibración (días)</label>
+                            <input type="number" id="sensorFrecuencia" placeholder="365" value="365">
+                        </div>
+                        <div class="form-group">
+                            <label>Archivo de Calibración (CSV) *</label>
+                            <input type="file" id="sensorArchivo" accept=".csv,.txt,.xls,.xlsx" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Rango Mínimo</label>
+                            <input type="number" id="sensorRangoMin" placeholder="0.0" step="0.0001">
+                        </div>
+                        <div class="form-group">
+                            <label>Rango Máximo</label>
+                            <input type="number" id="sensorRangoMax" placeholder="100.0" step="0.0001">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Última Calibración</label>
+                            <input type="date" id="sensorUltimaCalibracion">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Subido por</label>
+                            <input type="text" id="sensorSubidoPor" placeholder="Tu nombre o identificación">
+                        </div>
+                    </div>
+
+                    <button type="button" id="btnRegistrarSensor" class="btn btn-primary">Registrar Sensor con Calibración</button>
+                </form>
+            </div>
+
+            <div class="list-section">
+                <h2>Sensores Registrados</h2>
+                <div class="filter-controls" style="margin-bottom: 20px;">
+                    <button class="btn btn-secondary" onclick="filtrarSensores('todos')">Todos</button>
+                    <button class="btn btn-success" onclick="filtrarSensores('activos')">Activos</button>
+                    <button class="btn btn-warning" onclick="filtrarSensores('calibrar')">Requieren Calibración</button>
+                </div>
+                <div id="sensoresList" class="items-list">
+                    <p class="loading">Cargando sensores...</p>
+                </div>
+            </div>
+            <!-- Recalibración de Sensores: formulario por sensor -->
+           
+        </section>
+
+        <!-- Ensayos Section -->
+        <section id="ensayos" class="section">
+            <h1>Gestión de Ensayos</h1>
+
+            <div class="form-section">
+                <h2>Crear Nuevo Ensayo</h2>
+                <form id="formEnsayo" class="form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre del Ensayo *</label>
+                            <input type="text" id="ensayoNombre" placeholder="Ej: Ensayo Inicial" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Máquina *</label>
+                            <select id="ensayoMaquina" required>
+                                <option value="">Selecciona una máquina</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="width:100%;">
+                            <label>Seleccionar modelo (opcional)</label>
+                            <div id="ensayoModelButtons" style="display:flex;gap:8px;align-items:center;">
+                                <button type="button" class="btn btn-light model-btn" data-model="LINEAR">
+                                    <img src="/static/img/linear.png" alt="LINEAR" style="height:28px;vertical-align:middle;margin-right:6px;"> y = m x + b
+                                </button>
+                                <button type="button" class="btn btn-light model-btn" data-model="QUADRATIC">
+                                    <img src="/static/img/quadratic.png" alt="QUADRATIC" style="height:28px;vertical-align:middle;margin-right:6px;"> y = a*x^2 + b*x + c
+                                </button>
+                                <button type="button" class="btn btn-light model-btn" data-model="CUBIC">
+                                    <img src="/static/img/cubic.png" alt="CUBIC" style="height:28px;vertical-align:middle;margin-right:6px;"> y = a*x^3 + b*x^2 + c*x + d
+                                </button>
+                                <span id="ensayoModelSelected" style="margin-left:12px;color:#333;font-weight:600;">Ninguno</span>
+                            </div>
+                            <input type="hidden" id="ensayoModeloSeleccionado" name="ensayoModeloSeleccionado" value="">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Responsable</label>
+                            <input type="text" id="ensayoResponsable" placeholder="Nombre del responsable">
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <input type="text" id="ensayoDescripcion" placeholder="Descripción del ensayo">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Crear Ensayo</button>
+                </form>
+            </div>
+
+            
+
+ 
+
+            
+                       <div class="form-section">
+                <h2>Cargar Datos desde Archivo</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ensayo *</label>
+                        <select id="cargaEnsayo" required>
+                            <option value="">Selecciona un ensayo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Archivo (CSV, TXT o PDF) *</label>
+                        <input type="file" id="cargaArchivo" accept=".csv,.txt,.pdf" required>
+                    </div>
+                    <button type="button" class="btn btn-info" onclick="cargarArchivo()">Cargar</button>
+                </div>
+            </div>
+            
+
+            <!-- Correcciones por ensayo se migraron a nivel de sensor; listado legado eliminado del UI -->
+
+            <div class="list-section">
+                <h2>Ensayos Activos</h2>
+                <div id="ensayosList" class="items-list">
+                    <p class="loading">Cargando ensayos...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Análisis Section -->
+        <section id="analisis" class="section">
+            <h1>Análisis de Ensayos</h1>
+
+            <div class="form-section">
+                <h2>Seleccionar Ensayo para Análisis</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ensayo *</label>
+                        <select id="analisisEnsayo" required onchange="cargarAnalisis()">
+                            <option value="">Selecciona un ensayo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="stats-card">
+                    <h3>Total de Datos</h3>
+                    <p class="stat-value" id="statTotal">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Media</h3>
+                    <p class="stat-value" id="statMedia">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Desviación Estándar</h3>
+                    <p class="stat-value" id="statDesv">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Máximo</h3>
+                    <p class="stat-value" id="statMax">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Mínimo</h3>
+                    <p class="stat-value" id="statMin">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Datos Anormales</h3>
+                    <p class="stat-value" id="statAnormales">-</p>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="stats-card">
+                    <h3>Rango</h3>
+                    <p class="stat-value" id="statRango">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Coef. Variación</h3>
+                    <p class="stat-value" id="statCoefVar">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Q1 (25%)</h3>
+                    <p class="stat-value" id="statQ1">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Mediana (Q2)</h3>
+                    <p class="stat-value" id="statQ2">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>Q3 (75%)</h3>
+                    <p class="stat-value" id="statQ3">-</p>
+                </div>
+                <div class="stats-card">
+                    <h3>% Anormales</h3>
+                    <p class="stat-value" id="statPorcentajeAnormales">-</p>
+                </div>
+            </div>
+
+            <div id="statFHContainer" class="section-row" style="display: none;">
+                <div class="stats-card highlight-card">
+                    <h3>Factor Histórico (FH)</h3>
+                    <p class="stat-value" id="statFactorHistorico">-</p>
+                </div>
+                <div class="stats-card highlight-card">
+                    <h3>Parámetro Z</h3>
+                    <p class="stat-value" id="statParametroZ">-</p>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Distribución de Datos</h3>
+                        <div class="chart-filter">
+                            <label>Hora:</label>
+                            <input type="time" id="filtroDistribucionInicio" class="filter-time">
+                            <span>a</span>
+                            <input type="time" id="filtroDistribucionFin" class="filter-time">
+                            <button onclick="filtrarGraficaDistribucion()" class="btn-filter">Filtrar</button>
+                            <button onclick="limpiarFiltroDistribucion()" class="btn-clear">Limpiar</button>
+                        </div>
+                    </div>
+                    <canvas id="chartDatos"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Datos Normales vs Anormales</h3>
+                        <div class="chart-filter">
+                            <label>Hora:</label>
+                            <input type="time" id="filtroAnormalesInicio" class="filter-time">
+                            <span>a</span>
+                            <input type="time" id="filtroAnormalesFin" class="filter-time">
+                            <button onclick="filtrarGraficaAnormales()" class="btn-filter">Filtrar</button>
+                            <button onclick="limpiarFiltroAnormales()" class="btn-clear">Limpiar</button>
+                        </div>
+                    </div>
+                    <canvas id="chartAnormales"></canvas>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Boxplot (Caja y Bigotes)</h3>
+                        <div class="chart-filter">
+                            <label>Hora:</label>
+                            <input type="time" id="filtroBoxplotInicio" class="filter-time">
+                            <span>a</span>
+                            <input type="time" id="filtroBoxplotFin" class="filter-time">
+                            <button onclick="filtrarGraficaBoxplot()" class="btn-filter">Filtrar</button>
+                            <button onclick="limpiarFiltroBoxplot()" class="btn-clear">Limpiar</button>
+                        </div>
+                    </div>
+                    <canvas id="chartBoxplot"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Análisis de Cuartiles</h3>
+                        <div class="chart-filter">
+                            <label>Hora:</label>
+                            <input type="time" id="filtroCuartilesInicio" class="filter-time">
+                            <span>a</span>
+                            <input type="time" id="filtroCuartilesFin" class="filter-time">
+                            <button onclick="filtrarGraficaCuartiles()" class="btn-filter">Filtrar</button>
+                            <button onclick="limpiarFiltroCuartiles()" class="btn-clear">Limpiar</button>
+                        </div>
+                    </div>
+                    <canvas id="chartCuartiles"></canvas>
+                </div>
+            </div>
+
+            <div class="section-row">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Serie Temporal</h3>
+                        <div class="chart-filter">
+                            <label>Hora:</label>
+                            <input type="time" id="filtroTemporalInicio" class="filter-time">
+                            <span>a</span>
+                            <input type="time" id="filtroTemporalFin" class="filter-time">
+                            <button onclick="filtrarGraficaTemporal()" class="btn-filter">Filtrar</button>
+                            <button onclick="limpiarFiltroTemporal()" class="btn-clear">Limpiar</button>
+                        </div>
+                    </div>
+                    <canvas id="chartTemporal"></canvas>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <h3>Análisis por Sensor</h3>
+                <div id="analisisSensores" class="table-container">
+                    <p class="loading">Selecciona un ensayo para ver el análisis por sensor</p>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <h3>Gráficas por Sensor</h3>
+                <div style="margin-bottom: 15px; padding: 20px; background: rgba(52, 152, 219, 0.08); border-radius: 12px; border: 2px solid rgba(52, 152, 219, 0.2);">
+                    <!-- Modo Comparación -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid rgba(52, 152, 219, 0.2);">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="modoComparacion" onchange="toggleModoComparacion()" style="width: 18px; height: 18px; cursor: pointer;">
+                            <span style="font-size: 16px;"><strong>📏 Modo Comparación:</strong> Superponer todos los sensores</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Selección de Sensores -->
+                    <div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <strong style="font-size: 15px;">🎯 Sensores:</strong>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="seleccionarTodosSensores()" class="btn btn-sm" style="padding: 4px 12px; font-size: 12px; background: #27ae60; border: none;">
+                                    ✓ Todos
+                                </button>
+                                <button onclick="deseleccionarTodosSensores()" class="btn btn-sm" style="padding: 4px 12px; font-size: 12px; background: #e74c3c; border: none;">
+                                    ✕ Ninguno
+                                </button>
+                            </div>
+                        </div>
+                        <div id="selectoresSensores" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px;">
+                            <p style="color: #888; font-style: italic;">🔄 Cargando sensores...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="graficasSensores">
+                    <p class="loading">📈 Selecciona un ensayo para ver las gráficas</p>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <h3>Datos Registrados</h3>
+                
+                <!-- Filtros de Hora -->
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.08); border-radius: 8px; border: 1px solid rgba(52, 152, 219, 0.2);">
+                    <h4 style="margin: 0 0 15px 0; color: #3498db;">⏰ Filtrar por Rango de Hora y Sensor</h4>
+                    <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label for="filtroHoraInicio" style="font-weight: 500; color: #555;">Hora Inicio:</label>
+                            <input type="time" id="filtroHoraInicio" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label for="filtroHoraFin" style="font-weight: 500; color: #555;">Hora Fin:</label>
+                            <input type="time" id="filtroHoraFin" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label for="filtroSensor" style="font-weight: 500; color: #555;">Sensor:</label>
+                            <select id="filtroSensor" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; min-width: 120px;">
+                                <option value="">Todos los sensores</option>
+                            </select>
+                        </div>
+                        <button onclick="aplicarFiltroHora()" class="btn btn-primary" style="padding: 8px 16px; height: fit-content;">Aplicar Filtro</button>
+                        <button onclick="limpiarFiltroHora()" class="btn btn-secondary" style="padding: 8px 16px; height: fit-content;">Limpiar</button>
+                    </div>
+                    <div id="filtroActivoTexto" style="margin-top: 10px; font-size: 12px; color: #444; font-weight: 600;"></div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        💡 Selecciona hora y sensor para filtrar datos. Ejemplo: 11:20-12:30 + Sensor específico.
+                    </div>
+                </div>
+                
+                <table id="tablaDatos" class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Sensor</th>
+                            <th>Valor</th>
+                            <th>Anormal</th>
+                            <th>Fuente</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaDatosBody">
+                        <tr><td colspan="6" class="loading">Cargando datos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+            <!-- Scripts -->
+            <script>
+                async function init() {
+                    await cargarSensoresEnSelectores();
+                    await refreshDashboardCounts();
+                    await loadCalibrationAlerts();
+
+                    document.getElementById('btnRegistrarSensor').addEventListener('click', registerSensorWithCalibration);
+                }
+
+                async function registerSensorWithCalibration() {
+                    const codigo = document.getElementById('sensorCodigo').value;
+                    const tipoSonda = document.getElementById('sensorTipoSonda').value;
+                    const frecuencia = parseInt(document.getElementById('sensorFrecuencia').value || '365');
+                    const archivo = document.getElementById('sensorArchivo').files[0];
+                    const subidoPor = document.getElementById('sensorSubidoPor').value || '';
+                    const rangoMin = document.getElementById('sensorRangoMin') ? document.getElementById('sensorRangoMin').value : '';
+                    const rangoMax = document.getElementById('sensorRangoMax') ? document.getElementById('sensorRangoMax').value : '';
+                    const ultimaCal = document.getElementById('sensorUltimaCalibracion') ? document.getElementById('sensorUltimaCalibracion').value : '';
+
+                    if (!archivo) { alert('Debes seleccionar un archivo de calibración (CSV).'); return; }
+
+                    const sensorObj = {
+                        codigo,
+                        tipoSonda,
+                        frecuenciaCalibracionDias: frecuencia
+                    };
+
+                    if (rangoMin !== '') sensorObj.rangoMinimo = parseFloat(rangoMin);
+                    if (rangoMax !== '') sensorObj.rangoMaximo = parseFloat(rangoMax);
+                    if (ultimaCal) sensorObj.ultimaCalibracion = ultimaCal;
+
+                    const btn = document.getElementById('btnRegistrarSensor');
+                    const editId = btn.dataset.editId;
+
+                    if (editId) {
+                        // Edit existing sensor: update JSON via API, then optionally upload new calibration
+                        try {
+                            // Update sensor metadata
+                            const updateResp = await fetch('/api/sensores/' + editId, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(sensorObj)
+                            });
+                            const updateText = await updateResp.text();
+                            if (!updateResp.ok) {
+                                let msg;
+                                try {
+                                    const err = updateText ? JSON.parse(updateText) : null;
+                                    msg = err && (err.error || err.message) ? (err.error || err.message) : (updateText || updateResp.statusText);
+                                } catch (e) {
+                                    msg = updateText || updateResp.statusText;
+                                }
+                                throw new Error(msg);
+                            }
+
+                            // If a new file was provided, upload as recalibration
+                            if (archivo) {
+                                const form = new FormData();
+                                form.append('archivo', archivo);
+                                if (subidoPor) form.append('subidoPor', subidoPor);
+                                const recResp = await fetch('/api/sensores/' + editId + '/recalibrar', { method: 'POST', body: form });
+                                const recText = await recResp.text();
+                                if (!recResp.ok) {
+                                    let derrMsg;
+                                    try {
+                                        const derr = recText ? JSON.parse(recText) : null;
+                                        derrMsg = derr && (derr.error || derr.message) ? (derr.error || derr.message) : (recText || recResp.statusText);
+                                    } catch (e) {
+                                        derrMsg = recText || recResp.statusText;
+                                    }
+                                    throw new Error(derrMsg);
+                                }
+                            }
+
+                            alert('Sensor actualizado correctamente');
+                            // reset edit state
+                            delete btn.dataset.editId;
+                            btn.textContent = 'Registrar Sensor con Calibración';
+                            document.getElementById('formSensor').reset();
+                            await cargarSensoresEnSelectores();
+                            await cargarSensores();
+                            await loadCalibrationAlerts();
+                        } catch (err) {
+                            console.error(err);
+                            alert('Error actualizando sensor: ' + err.message);
+                        }
+                    } else {
+                        const form = new FormData();
+                        form.append('sensor', JSON.stringify(sensorObj));
+                        form.append('archivo', archivo);
+                        if (subidoPor) form.append('subidoPor', subidoPor);
+
+                        try {
+                            const resp = await fetch('/api/sensores/crear-con-calibracion', {
+                                method: 'POST', body: form
+                            });
+                            const data = await resp.json();
+                            if (!resp.ok) throw new Error(data.error || JSON.stringify(data));
+                            alert('Sensor creado y calibración subida correctamente');
+                            await cargarSensoresEnSelectores();
+                            await loadCalibrationAlerts();
+                        } catch (err) {
+                            console.error(err);
+                            alert('Error creando sensor: ' + err.message);
+                        }
+                    }
+                }
+
+                // Recalibración vía formulario independiente eliminada; uso del mismo formulario de creación/actualización
+
+                async function loadCalibrationAlerts() {
+                    try {
+                        const resp = await fetch('/api/sensores/alertas/calibracion');
+                        const sensores = await resp.json();
+                        const containerId = 'sensoresList';
+                        const container = document.getElementById(containerId);
+                        if (!Array.isArray(sensores) || sensores.length === 0) {
+                            container.innerHTML = '<p>No hay sensores con calibración próxima.</p>';
+                            return;
+                        }
+                        container.innerHTML = '';
+                        sensores.forEach(s => {
+                            const div = document.createElement('div');
+                            div.className = 'item';
+                            div.innerHTML = '<strong>' + (s.codigo || ('ID:'+s.id)) + '</strong> — Próxima: ' + (s.proximaCalibracion || 'N/A') + '<br><small>' + (s.ubicacion || '') + '</small>';
+                            container.appendChild(div);
+                        });
+                    } catch (e) { console.debug('Error cargando alertas de calibración', e); }
+                }
+
+                async function refreshDashboardCounts() {
+                    try {
+                        const resp = await fetch('/api/sensores');
+                        const sensores = await resp.json();
+                        document.getElementById('countSensores').textContent = sensores.length;
+                    } catch (e) { /* ignore */ }
+                }
+
+                window.addEventListener('load', init);
+            </script>
+
+        <!-- Reportes Section -->
+        <section id="reportes" class="section">
+            <h1>Reportes</h1>
+
+            <div class="form-section">
+                <h2>Generar Reporte</h2>
+                <form id="formReporte" class="form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ensayo *</label>
+                            <select id="reporteEnsayo" required>
+                                <option value="">Selecciona un ensayo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Generado por</label>
+                            <input type="text" id="reporteGeneradoPor" placeholder="Tu nombre">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Generar Reporte</button>
+                </form>
+            </div>
+
+            <div class="list-section">
+                <h2>Reportes Disponibles</h2>
+                <div class="form-section" style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+                    <h3 style="margin-top: 0; font-size: 16px; color: #495057;">Filtrar Reportes</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Desde</label>
+                            <input type="date" id="filtroFechaDesde" onchange="filtrarReportesPorFecha()">
+                        </div>
+                        <div class="form-group">
+                            <label>Hasta</label>
+                            <input type="date" id="filtroFechaHasta" onchange="filtrarReportesPorFecha()">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select id="filtroTipo" onchange="filtrarReportesPorFecha()">
+                                <option value="">Todos</option>
+                                <option value="EXCEL">Excel</option>
+                                <option value="CSV">CSV</option>
+                                <option value="PDF">PDF</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button type="button" class="btn btn-secondary" onclick="limpiarFiltrosReportes()" style="width: 100%;">Limpiar Filtros</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="reportesList" class="items-list">
+                    <p class="loading">Cargando reportes...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Configuración Section -->
+        <section id="configuracion" class="section">
+            <h1>Configuración del Sistema</h1>
+
+            <div class="section-group">
+                <h2>Parámetros Generales</h2>
+                
+                <div class="form-section">
+                    <form id="formConfiguracion" class="form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Frecuencia de Actualización (segundos)</label>
+                                <input type="number" id="configPollingInterval" min="1" max="60" value="5" placeholder="5">
+                                <small>Intervalo de actualización automática de datos</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Límite de Registros por Página</label>
+                                <input type="number" id="configPageSize" min="10" max="100" value="50" placeholder="50">
+                                <small>Cantidad máxima de registros mostrados</small>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Umbral de Temperatura Anormal (°C)</label>
+                                <input type="number" id="configTempThreshold" step="0.1" value="2.0" placeholder="2.0">
+                                <small>Desviación máxima permitida de temperatura</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Retención de Logs (días)</label>
+                                <input type="number" id="configLogRetention" min="1" max="365" value="30" placeholder="30">
+                                <small>Días que se mantienen los logs del sistema</small>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Notificaciones</label>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <input type="checkbox" id="configNotifications" checked>
+                                    <label for="configNotifications" style="margin: 0;">Activar notificaciones del sistema</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Modo Oscuro</label>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <input type="checkbox" id="configDarkMode">
+                                    <label for="configDarkMode" style="margin: 0;">Activar tema oscuro</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetearConfiguracion()">Restablecer Valores Predeterminados</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="section-group">
+                <h2>Información del Sistema</h2>
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>Versión de la Aplicación</h3>
+                        <p class="info-value">v1.0.0</p>
+                    </div>
+                    <div class="info-card">
+                        <h3>Base de Datos</h3>
+                        <p class="info-value" id="configDbStatus">Conectada</p>
+                    </div>
+                    <div class="info-card">
+                        <h3>Último Backup</h3>
+                        <p class="info-value" id="configLastBackup">N/A</p>
+                    </div>
+                    <div class="info-card">
+                        <h3>Espacio en Disco</h3>
+                        <p class="info-value" id="configDiskSpace">N/A</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-group">
+                <h2>Verificación Factor Histórico (FH)</h2>
+                <p style="margin-bottom: 15px; color: var(--color-text-light);">
+                    Verificar si el cálculo del Factor Histórico está funcionando correctamente en los reportes generados.
+                </p>
+                
+                <div class="fh-verification">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Seleccionar Ensayo para Verificar FH</label>
+                            <select id="ensayoFH" style="width: 100%;">
+                                <option value="">Seleccione un ensayo...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button type="button" class="btn btn-primary" onclick="verificarFH()" style="width: 100%;">
+                                Verificar FH
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="fhResultado" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #3498db;">
+                        <h4 style="margin-top: 0; color: var(--color-dark);">Resultado de la Verificación</h4>
+                        <div id="fhDatos"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-group">
+                <h2>Mantenimiento</h2>
+                <div class="actions-grid">
+                    <button type="button" class="btn btn-warning" onclick="limpiarCache()">Limpiar Caché</button>
+                    <button type="button" class="btn btn-warning" onclick="recargarDatos()">Recargar Todos los Datos</button>
+                    <button type="button" class="btn btn-info" onclick="exportarConfiguracion()">Exportar Configuración</button>
+                    <button type="button" class="btn btn-info" onclick="importarConfiguracion()">Importar Configuración</button>
+                </div>
+            </div>
+
+            <div class="section-group">
+                <h2>Logs del Sistema</h2>
+                <div class="logs-container">
+                    <textarea id="systemLogs" readonly rows="10" style="width: 100%; font-family: monospace; background: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+Sistema iniciado correctamente...
+Conexión a base de datos establecida.
+API REST disponible en puerto 8080.
+                    </textarea>
+                    <div style="margin-top: 10px;">
+                        <button type="button" class="btn btn-secondary" onclick="descargarLogs()">Descargar Logs</button>
+                        <button type="button" class="btn btn-warning" onclick="limpiarLogs()">Limpiar Logs</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="cerrarModal()">&times;</span>
+            <h2 id="modalTitle">Modal</h2>
+            <div id="modalBody">
+                <p>Contenido del modal</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

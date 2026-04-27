@@ -1,0 +1,125 @@
+{
+  "info": {
+    "name": "Gestion de Archivos - API",
+    "description": "Colección completa de endpoints del sistema de gestión de ensayos",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "maquinaId",
+      "value": "1"
+    },
+    {
+      "key": "ensayoId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Máquinas",
+      "item": [
+        {
+          "name": "Crear Máquina",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maquinas",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maquinas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nombre\":\"Horno Térmico A1\",\"tipo\":\"Horno\",\"descripcion\":\"Horno industrial\",\"limiteInferior\":20,\"limiteSuperior\":150,\"unidadMedida\":\"°C\",\"ubicacion\":\"Lab 1\",\"modelo\":\"HT-2000\",\"numeroSerie\":\"SN-001\"}"
+            }
+          }
+        },
+        {
+          "name": "Obtener Todas las Máquinas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/maquinas",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maquinas"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Máquina por ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/maquinas/{{maquinaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maquinas", "{{maquinaId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ensayos",
+      "item": [
+        {
+          "name": "Crear Ensayo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ensayos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ensayos"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nombre\":\"Ensayo Inicial\",\"maquina\":{\"id\":{{maquinaId}}},\"descripcion\":\"Prueba de calibración\",\"responsable\":\"Juan Pérez\"}"
+            }
+          }
+        },
+        {
+          "name": "Registrar Dato",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ensayos/{{ensayoId}}/datos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ensayos", "{{ensayoId}}", "datos"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"valor\":45.5,\"fuente\":\"SENSOR_A\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Análisis",
+      "item": [
+        {
+          "name": "Obtener Estadísticas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/analisis/ensayo/{{ensayoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analisis", "ensayo", "{{ensayoId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
