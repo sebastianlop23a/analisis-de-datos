@@ -79,3 +79,26 @@ ON DUPLICATE KEY UPDATE nombre=VALUES(nombre);  -- Ignora duplicados si existen
 CREATE USER IF NOT EXISTS 'usuario'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON gestion_archivos.* TO 'usuario'@'%';
 FLUSH PRIVILEGES;
+
+-- Tabla de Documentos Logtag
+CREATE TABLE IF NOT EXISTS logtag_documentos (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  ensayo_id BIGINT,
+  nombre_archivo VARCHAR(255) NOT NULL,
+  tipo_documento VARCHAR(50) NOT NULL,
+  categoria VARCHAR(50) NOT NULL COMMENT 'LOGTAG o SENSORES',
+  contenidoTexto LONGTEXT,
+  tamanio_bytes BIGINT NOT NULL,
+  fecha_subida TIMESTAMP NOT NULL,
+  descripcion TEXT,
+  subido_por VARCHAR(255),
+  procesado BOOLEAN DEFAULT FALSE,
+  notas LONGTEXT,
+  sensores_detectados TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (ensayo_id) REFERENCES ensayos(id) ON DELETE SET NULL,
+  INDEX idx_categoria (categoria),
+  INDEX idx_ensayo (ensayo_id),
+  INDEX idx_fecha (fecha_subida)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

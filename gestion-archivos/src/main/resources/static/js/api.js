@@ -719,3 +719,107 @@ async function obtenerSensoresProximosCalibracion() {
         return [];
     }
 }
+
+// ====================================
+// API - LOGTAG DOCUMENTOS
+// ====================================
+
+/**
+ * Subir documento logtag con categoría
+ */
+async function subirLogtag(archivo, ensayoId, categoria, descripcion = '', subidoPor = 'Sistema') {
+    try {
+        const formData = new FormData();
+        formData.append('archivo', archivo);
+        if (ensayoId) formData.append('ensayoId', ensayoId);
+        formData.append('categoria', categoria);
+        if (descripcion) formData.append('descripcion', descripcion);
+        if (subidoPor) formData.append('subidoPor', subidoPor);
+
+        const response = await fetch(`${API_CONFIG.BASE_URL}/logtag`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error subiendo documento logtag:', error);
+        throw error;
+    }
+}
+
+/**
+ * Listar todos los documentos
+ */
+async function obtenerLogtags() {
+    try {
+        return await api.get('/logtag');
+    } catch (error) {
+        console.error('Error obteniendo logtags:', error);
+        return [];
+    }
+}
+
+/**
+ * Listar documentos por categoría
+ */
+async function obtenerLogtagsPorCategoria(categoria) {
+    try {
+        return await api.get(`/logtag/categoria/${categoria}`);
+    } catch (error) {
+        console.error('Error obteniendo logtags por categoría:', error);
+        return [];
+    }
+}
+
+/**
+ * Listar documentos de un ensayo
+ */
+async function obtenerLogtagsPorEnsayo(ensayoId) {
+    try {
+        return await api.get(`/logtag/ensayo/${ensayoId}`);
+    } catch (error) {
+        console.error('Error obteniendo logtags del ensayo:', error);
+        return [];
+    }
+}
+
+/**
+ * Obtener documento por ID
+ */
+async function obtenerLogtag(id) {
+    try {
+        return await api.get(`/logtag/${id}`);
+    } catch (error) {
+        console.error('Error obteniendo logtag:', error);
+        return null;
+    }
+}
+
+/**
+ * Eliminar documento
+ */
+async function eliminarLogtag(id) {
+    try {
+        return await api.delete(`/logtag/${id}`);
+    } catch (error) {
+        console.error('Error eliminando logtag:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtener estadísticas de documentos
+ */
+async function obtenerEstadisticasLogtag() {
+    try {
+        return await api.get('/logtag/estadisticas');
+    } catch (error) {
+        console.error('Error obteniendo estadísticas:', error);
+        return { total: 0, logtags: 0, sensores: 0 };
+    }
+}

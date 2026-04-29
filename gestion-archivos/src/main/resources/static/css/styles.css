@@ -2142,6 +2142,22 @@ body.dark-mode .model-btn.active {
     color: white;
 }
 
+/* Model button active style (light mode) */
+.model-btn {
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.model-btn:hover {
+    cursor: pointer;
+    background-color: #f0f4f8;
+}
+
+.model-btn.active {
+    background: #3498db;
+    border-color: #3498db;
+    color: #ffffff;
+}
+
 /* Elementos de form dinámicos en modo oscuro */
 body.dark-mode .form-group {
     color: #e4e4e4;

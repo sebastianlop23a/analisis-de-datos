@@ -89,11 +89,11 @@ public class CalibrationManagementService {
         List<CalibrationPoint> calibrationPoints = parseCalibrationFile(new java.io.ByteArrayInputStream(fileBytes), file.getOriginalFilename());
 
         // If not enough calibration points, attempt to parse the file as a coefficients CSV
-        final Map<String, double[]> parsedCoefficients;
+        final Map<String, CoefficientRow> parsedCoefficients;
         final boolean usedCoefficientsFallback;
         if (calibrationPoints.size() < 2) {
             logger.info("Parsed {} calibration points from CSV - attempting coefficient-file fallback", calibrationPoints.size());
-            Map<String, double[]> tmp = parseCoefficientsCSV(new java.io.ByteArrayInputStream(fileBytes));
+            Map<String, CoefficientRow> tmp = parseCoefficientsCSV(new java.io.ByteArrayInputStream(fileBytes));
             if (!tmp.isEmpty()) {
                 parsedCoefficients = tmp;
                 usedCoefficientsFallback = true;
@@ -250,7 +250,7 @@ public class CalibrationManagementService {
                     }
 
                     // Crear modelos de regresión directamente a partir de los coeficientes proporcionados
-                    for (Map.Entry<String, double[]> entry : parsedCoefficients.entrySet()) {
+                    for (Map.Entry<String, CoefficientRow> entry : parsedCoefficients.entrySet()) {
                         String sensorCode = entry.getKey().trim();
                         // si la fila usa la forma por defecto (sin sensor), mapearla al código del sensor objetivo si está disponible
                         if ("_default".equals(sensorCode) && deviceId != null && deviceId != 0L) {
@@ -263,7 +263,8 @@ public class CalibrationManagementService {
                         }
                         // if targetSensorCode is set, only process matching row
                         if (targetSensorCode != null && !targetSensorCode.equals(sensorCode)) continue;
-                        double[] c = entry.getValue(); // expected order: A (const), B (x), C (x^2), D (x^3)
+                        double[] c = entry.getValue().coeffs; // expected order: A (const), B (x), C (x^2), D (x^3)
+                        String declaredTipo = entry.getValue().tipo;
 
                     // Crear modelo lineal (si B o A están presentes)
                     RegressionModel linear = new RegressionModel();
@@ -351,6 +352,35 @@ public class CalibrationManagementService {
             }
 
             if (selected == null) {
+                // If coefficients file provided, try to honor an explicit 'tipo' declared in the coefficient row
+                if (usedCoefficientsFallback) {
+                    try {
+                        // resolve the target sensor code here (avoid referencing out-of-scope vars)
+                        String resolvedTargetCode = null;
+                        if (deviceId != null && deviceId != 0L) {
+                            try {
+                                var optSensor2 = sensorServicio.obtenerPorId(deviceId);
+                                if (optSensor2.isPresent()) resolvedTargetCode = optSensor2.get().getCodigo();
+                            } catch (Exception ex) {
+                                logger.debug("No se pudo resolver sensor para selección de tipo explícito: {}", ex.getMessage());
+                            }
+                        }
+
+                        // prefer the target sensor row, fall back to _default
+                        CoefficientRow r = null;
+                        if (resolvedTargetCode != null && parsedCoefficients.containsKey(resolvedTargetCode)) r = parsedCoefficients.get(resolvedTargetCode);
+                        if (r == null) r = parsedCoefficients.get("_default");
+                        if (r != null && r.tipo != null && !r.tipo.trim().isEmpty()) {
+                            RegressionModelType explicit = mapTipoToModelType(r.tipo.trim());
+                            if (explicit != null) {
+                                boolean has = savedModels.stream().anyMatch(m -> m.getModelType() == explicit);
+                                if (has) selected = explicit;
+                            }
+                        }
+                    } catch (Exception ignore) {
+                        // ignore mapping errors and fall back to existing logic
+                    }
+                }
                 if (models != null && savedPoints != null) {
                     // Preferir el mejor R² ajustado cuando calculamos modelos a partir de puntos
                     selected = chooseBestModelByAdjustedRSquared(models, savedPoints.size());
@@ -564,11 +594,25 @@ public class CalibrationManagementService {
     }
 
     /**
-     * Attempts to parse a coefficient-style CSV where rows contain:
-     * "SENSOR","A","B","C","D",... and returns a map sensor -> [A,B,C,D]
+     * Container for parsed coefficient row including optional preferred model type.
      */
-    private Map<String, double[]> parseCoefficientsCSV(java.io.InputStream inputStream) throws IOException {
-        Map<String, double[]> result = new LinkedHashMap<>();
+    private static class CoefficientRow {
+        double[] coeffs; // order: A, B, C, D
+        String tipo; // optional textual hint: lineal/cuadratico/cubica or similar
+
+        CoefficientRow(double[] coeffs, String tipo) {
+            this.coeffs = coeffs;
+            this.tipo = tipo;
+        }
+    }
+
+    /**
+     * Attempts to parse a coefficient-style CSV where rows may contain:
+     * "SENSOR","A","B","C","D","tipo",... or "A","B","C","D","tipo"
+     * Returns a map sensor -> CoefficientRow (coefficients + optional tipo).
+     */
+    private Map<String, CoefficientRow> parseCoefficientsCSV(java.io.InputStream inputStream) throws IOException {
+        Map<String, CoefficientRow> result = new LinkedHashMap<>();
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             String line;
@@ -588,30 +632,36 @@ public class CalibrationManagementService {
                 }
                 for (int i = 0; i < parts.length; i++) parts[i] = cleanValue(parts[i]);
 
-                // Accept either: SENSOR,A,B,C,D  OR  A,B,C,D (coefficients-only row)
-                if (parts.length >= 4) {
-                    try {
-                        // If the first part parses as a number, assume the row is coefficients-only
-                        double first = parseNumber(parts[0]);
-                        double a = first;
-                        double b = parseNumber(parts[1]);
-                        double c = parseNumber(parts[2]);
-                        double d = parseNumber(parts[3]);
-                        // use a sentinel key for default/no-sensor rows
-                        result.put("_default", new double[] { a, b, c, d });
-                    } catch (Exception e1) {
-                        // first part is not numeric; treat parts[0] as sensor id if we have at least 5 columns
-                        if (parts.length >= 5) {
-                            try {
-                                String sensor = parts[0].trim().replaceAll("\"", "");
-                                double a = parseNumber(parts[1]);
-                                double b = parseNumber(parts[2]);
-                                double c = parseNumber(parts[3]);
-                                double d = parseNumber(parts[4]);
-                                result.put(sensor, new double[] { a, b, c, d });
-                            } catch (Exception e2) {
-                                // ignore non-numeric rows
-                            }
+                // Normalize length
+                if (parts.length < 1) continue;
+
+                // Helper to safely get part or empty
+                java.util.function.IntFunction<String> partAt = idx -> (idx >= 0 && idx < parts.length) ? parts[idx] : "";
+
+                // Try two main shapes:
+                // 1) coefficients-only: A,B,C,D[,tipo]
+                // 2) sensor,A,B,C,D[,tipo]
+                try {
+                    // Attempt to parse as coefficients-only (first column numeric)
+                    double a = parseNumber(partAt.apply(0));
+                    double b = parts.length > 1 && !partAt.apply(1).isEmpty() ? parseNumber(partAt.apply(1)) : 0.0;
+                    double c = parts.length > 2 && !partAt.apply(2).isEmpty() ? parseNumber(partAt.apply(2)) : 0.0;
+                    double d = parts.length > 3 && !partAt.apply(3).isEmpty() ? parseNumber(partAt.apply(3)) : 0.0;
+                    String tipo = parts.length > 4 ? partAt.apply(4) : null;
+                    result.put("_default", new CoefficientRow(new double[] { a, b, c, d }, tipo));
+                } catch (Exception e1) {
+                    // Not coefficients-only; try sensor code first
+                    if (parts.length >= 5) {
+                        try {
+                            String sensor = partAt.apply(0).trim().replaceAll("\"", "");
+                            double a = !partAt.apply(1).isEmpty() ? parseNumber(partAt.apply(1)) : 0.0;
+                            double b = !partAt.apply(2).isEmpty() ? parseNumber(partAt.apply(2)) : 0.0;
+                            double c = !partAt.apply(3).isEmpty() ? parseNumber(partAt.apply(3)) : 0.0;
+                            double d = !partAt.apply(4).isEmpty() ? parseNumber(partAt.apply(4)) : 0.0;
+                            String tipo = parts.length > 5 ? partAt.apply(5) : null;
+                            result.put(sensor, new CoefficientRow(new double[] { a, b, c, d }, tipo));
+                        } catch (Exception e2) {
+                            // ignore non-numeric rows
                         }
                     }
                 }
@@ -797,6 +847,23 @@ public class CalibrationManagementService {
             // try replacing comma with dot if appropriate
             String alt = value.replace(',', '.');
             return Double.parseDouble(alt);
+        }
+    }
+
+    /**
+     * Maps textual "tipo" values coming from coefficient CSV to RegressionModelType.
+     */
+    private RegressionModelType mapTipoToModelType(String tipo) {
+        if (tipo == null) return null;
+        String t = tipo.trim().toLowerCase();
+        if (t.isEmpty()) return null;
+        if (t.contains("line") || t.contains("lineal") || t.equals("linear")) return RegressionModelType.LINEAR;
+        if (t.contains("cuadr") || t.contains("quad") || t.equals("quadratic") || t.equals("cuadratico")) return RegressionModelType.QUADRATIC;
+        if (t.contains("cub") || t.contains("cubic") || t.equals("cubica") || t.equals("cubic")) return RegressionModelType.CUBIC;
+        try {
+            return RegressionModelType.valueOf(t.toUpperCase());
+        } catch (Exception e) {
+            return null;
         }
     }
 

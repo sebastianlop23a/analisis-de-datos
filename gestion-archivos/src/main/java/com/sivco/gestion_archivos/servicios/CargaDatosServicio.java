@@ -46,6 +46,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.time.format.DateTimeFormatter;
+import com.sivco.gestion_archivos.modelos.calibration.RegressionModel;
+import com.sivco.gestion_archivos.modelos.calibration.RegressionModelType;
 
 @Service
 public class CargaDatosServicio {
@@ -98,8 +110,195 @@ public class CargaDatosServicio {
             logger.info("Detectado archivo CSV: {}", archivo.getOriginalFilename());
             return cargarDatosCSV(archivo, ensayoId, sensoresPermitidos);
         }
+        // Si es Excel, usar POI para parsear
+        else if (filename.endsWith(".xlsx") || filename.endsWith(".xls") || filename.endsWith(".xlsm")) {
+            logger.info("Detectado archivo Excel: {}", archivo.getOriginalFilename());
+            return cargarDatosExcel(archivo, ensayoId);
+        }
         
-        throw new IOException("Formato de archivo no soportado. Use CSV o PDF SIVCO-LOGGER");
+        throw new IOException("Formato de archivo no soportado. Use CSV, Excel o PDF SIVCO-LOGGER");
+    }
+
+    /**
+     * Cargar datos desde un archivo Excel (.xlsx o .xls).
+     * Intentamos detectar columnas de fecha/hora y columnas numéricas de sensores.
+     */
+    public List<DatoEnsayoTemporal> cargarDatosExcel(MultipartFile archivo, Long ensayoId) throws IOException {
+        logger.info("Iniciando carga de Excel para ensayo: {} - archivo: {}", ensayoId, archivo.getOriginalFilename());
+
+        List<DatoEnsayoTemporal> resultado = new ArrayList<>();
+        DataFormatter formatter = new DataFormatter();
+
+        try (Workbook workbook = WorkbookFactory.create(archivo.getInputStream())) {
+            Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
+            if (sheet == null) {
+                throw new IOException("El archivo Excel no contiene hojas");
+            }
+
+            // Detectar dinámicamente la fila de encabezado (buscar 'fecha'/'hora'/'medida'/'%HR')
+            int headerRowIndex = sheet.getFirstRowNum();
+            boolean headerFound = false;
+            int scanLimit = Math.min(sheet.getLastRowNum(), sheet.getFirstRowNum() + 10);
+            for (int i = sheet.getFirstRowNum(); i <= scanLimit; i++) {
+                Row r = sheet.getRow(i);
+                if (r == null) continue;
+                for (Cell c : r) {
+                    String hv = formatter.formatCellValue(c).trim().toLowerCase();
+                    if (hv.contains("fecha") || hv.contains("hora") || hv.contains("%hr") || hv.contains("medida")) {
+                        headerRowIndex = i;
+                        headerFound = true;
+                        break;
+                    }
+                }
+                if (headerFound) break;
+            }
+
+            Row headerRow = sheet.getRow(headerRowIndex);
+            if (headerRow == null) {
+                throw new IOException("Hoja de Excel vacía o sin encabezado");
+            }
+
+            int firstRow = headerRowIndex + 1;
+            int lastRow = sheet.getLastRowNum();
+
+            // Mapear índices de columnas relevantes
+            Integer idxFecha = null;
+            Integer idxHora = null;
+            Map<Integer, String> sensorColumns = new HashMap<>();
+
+            for (Cell cell : headerRow) {
+                String headRaw = formatter.formatCellValue(cell).trim();
+                String head = headRaw.toLowerCase();
+                int col = cell.getColumnIndex();
+                if (head.contains("fecha") || head.contains("date")) idxFecha = col;
+                else if (head.contains("hora") || head.contains("time")) idxHora = col;
+                else if (head.contains("medida") || head.matches("^#?\\d+$")) {
+                    // 'Medida' es índice/serie, ignorar
+                }
+                else if (head.contains("transcurrido") || head.contains("transcurrido") || head.contains("eventos") || head.contains("comentario")) {
+                    // columnas de texto/meta, ignorar
+                }
+                else if (head.matches(".*(t\\d+|sensor|s\\d+).*")) {
+                    sensorColumns.put(col, headRaw);
+                }
+                else if (head.contains("%hr") || head.contains("% hr") || head.equals("%hr") || head.equals("hr") || head.contains("humedad") ) {
+                    sensorColumns.put(col, "%HR");
+                }
+                else if (head.contains("°c") || head.contains("celsius") || head.contains("temperatura") || head.equals("c") ) {
+                    sensorColumns.put(col, "°C");
+                }
+                else if (head.matches(".*(temp|temperatura|t[mp]).*")) {
+                    sensorColumns.put(col, headRaw);
+                }
+                else {
+                    // columnas numéricas sin nombre claro: se evaluará en la fila de datos
+                }
+            }
+
+            // Si no se detectaron columnas de sensor explícitas, intentar detectar columnas numéricas en la segunda fila
+            if (sensorColumns.isEmpty() && firstRow <= lastRow) {
+                Row second = sheet.getRow(firstRow);
+                if (second != null) {
+                    for (Cell cell : second) {
+                        int col = cell.getColumnIndex();
+                        String val = formatter.formatCellValue(cell).trim();
+                        try {
+                            Double.parseDouble(val.replace(',', '.'));
+                            // nombrar como columna_{col}
+                            sensorColumns.put(col, "col_" + (col+1));
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
+
+            DateTimeFormatter dateFmt1 = DateTimeFormatter.ofPattern("d/M/yyyy");
+            DateTimeFormatter dateFmt2 = DateTimeFormatter.ofPattern("yyyy-M-d");
+            DateTimeFormatter timeFmt1 = DateTimeFormatter.ofPattern("H:mm:ss");
+            DateTimeFormatter timeFmt2 = DateTimeFormatter.ofPattern("H:mm");
+
+            int seq = 0;
+            for (int r = firstRow; r <= lastRow; r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                // construir timestamp
+                LocalDate date = null;
+                LocalTime time = null;
+                try {
+                    if (idxFecha != null) {
+                        String fechaStr = formatter.formatCellValue(row.getCell(idxFecha)).trim();
+                        if (!fechaStr.isEmpty()) {
+                            try { date = LocalDate.parse(fechaStr, dateFmt1); } catch (DateTimeParseException ex1) {
+                                try { date = LocalDate.parse(fechaStr, dateFmt2); } catch (DateTimeParseException ex2) { date = null; }
+                            }
+                        }
+                    }
+                    if (idxHora != null) {
+                        String horaStr = formatter.formatCellValue(row.getCell(idxHora)).trim();
+                        if (!horaStr.isEmpty()) {
+                            try { time = LocalTime.parse(horaStr, timeFmt1); } catch (DateTimeParseException ex1) {
+                                try { time = LocalTime.parse(horaStr, timeFmt2); } catch (DateTimeParseException ex2) { time = null; }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // ignorar parseo de fecha/hora por fila
+                }
+
+                // si no hay fecha/hora, usar secuencia incremental con fecha hoy
+                java.time.LocalDateTime timestamp = null;
+                if (date != null) {
+                    if (time == null) time = LocalTime.MIDNIGHT;
+                    timestamp = java.time.LocalDateTime.of(date, time);
+                } else {
+                    timestamp = java.time.LocalDateTime.now().plusSeconds(seq);
+                }
+
+                // por cada columna de sensor, intentar parsear valor
+                for (Map.Entry<Integer,String> entry : sensorColumns.entrySet()) {
+                    Cell cell = row.getCell(entry.getKey());
+                    if (cell == null) continue;
+                    String raw = formatter.formatCellValue(cell).trim();
+                    if (raw.isEmpty()) continue;
+                    try {
+                        double valor = Double.parseDouble(raw.replace(',', '.'));
+                        DatoEnsayoTemporal d = new DatoEnsayoTemporal();
+                        d.setEnsayoId(ensayoId);
+                        d.setTimestamp(timestamp);
+                        d.setValor(valor);
+                        d.setFuente("EXCEL");
+                        d.setNumeroSecuencia(seq);
+                        d.setSensor(entry.getValue());
+                        resultado.add(d);
+                    } catch (NumberFormatException nfe) {
+                        // ignorar valores no numéricos
+                    }
+                }
+
+                seq++;
+            }
+
+        } catch (Exception e) {
+            logger.error("Error procesando Excel: {}", e.getMessage(), e);
+            throw new IOException("Error procesando archivo Excel: " + e.getMessage(), e);
+        }
+
+        logger.info("Excel procesado, registros obtenidos: {}", resultado.size());
+        return resultado;
+    }
+
+    private RegressionModelType mapStringToModelType(String tipo) {
+        if (tipo == null) return null;
+        String t = tipo.trim().toLowerCase();
+        if (t.isEmpty()) return null;
+        if (t.contains("line") || t.contains("lineal") || t.equals("linear")) return RegressionModelType.LINEAR;
+        if (t.contains("cuadr") || t.contains("quad") || t.equals("quadratic") || t.equals("cuadratico")) return RegressionModelType.QUADRATIC;
+        if (t.contains("cub") || t.contains("cubic") || t.equals("cubica") || t.equals("cubic")) return RegressionModelType.CUBIC;
+        try {
+            return RegressionModelType.valueOf(t.toUpperCase());
+        } catch (Exception e) {
+            return null;
+        }
     }
     
     /**
@@ -828,6 +1027,26 @@ public class CargaDatosServicio {
             // Map device IDs to sensors (from sensor name to device ID)
             Map<String, Long> sensorToDeviceId = resolveSensorDeviceIds(sensoresEnDatos);
             logger.info("Resueltos {} device IDs para sensores", sensorToDeviceId.size());
+
+            // Read ensayo-level preferred model (if any) so we can honor it when applying new-system corrections
+            RegressionModelType ensayoPreferredModel = null;
+            try {
+                Optional<Ensayo> optEns = ensayoServicio.obtenerEnsayo(ensayoId);
+                if (optEns.isPresent()) {
+                    String obs = optEns.get().getObservaciones();
+                    if (obs != null) {
+                        // look for pattern ModeloPreferido:VALUE (case-insensitive)
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("ModeloPreferido\s*:\s*([A-Za-z0-9_\-]+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(obs);
+                        if (m.find()) {
+                            String val = m.group(1).trim();
+                            ensayoPreferredModel = mapStringToModelType(val);
+                            logger.info("Ensayo {} requests preferred model: {}", ensayoId, ensayoPreferredModel);
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                logger.debug("No se pudo leer preferencia de modelo del ensayo {}: {}", ensayoId, ex.getMessage());
+            }
             
             // Create a map of sensor name to active calibration (prioritize new system)
             Map<String, com.sivco.gestion_archivos.modelos.calibration.CalibrationSession> newSystemCalibrations = new HashMap<>();
@@ -894,7 +1113,25 @@ public class CargaDatosServicio {
                     
                     if (newCalibration != null && dato.getValor() != null) {
                         try {
-                            Double correctedValue = newCalibration.applyCorrection(dato.getValor());
+                            Double correctedValue;
+                            // If ensayo requests a specific model, try to find that model in the session and apply it directly
+                            if (ensayoPreferredModel != null) {
+                                RegressionModel rm = null;
+                                if (newCalibration.getRegressionModels() != null) {
+                                    for (RegressionModel m : newCalibration.getRegressionModels()) {
+                                        if (m != null && m.getModelType() == ensayoPreferredModel) { rm = m; break; }
+                                    }
+                                }
+                                if (rm != null) {
+                                    correctedValue = dato.getValor() + rm.applyCorrectionModel(dato.getValor());
+                                    // mark which model used via appliedCalibrationId (session id) and could store model type in metadata if needed
+                                } else {
+                                    // fallback to session default
+                                    correctedValue = newCalibration.applyCorrection(dato.getValor());
+                                }
+                            } else {
+                                correctedValue = newCalibration.applyCorrection(dato.getValor());
+                            }
                             datoCorregido = copiarDato(dato);
                             datoCorregido.setValor(correctedValue);
                             datoCorregido.setAppliedCalibrationId(newCalibration.getId());

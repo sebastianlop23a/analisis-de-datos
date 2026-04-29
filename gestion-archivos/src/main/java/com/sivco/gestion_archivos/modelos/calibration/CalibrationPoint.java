@@ -68,4 +68,37 @@ public class CalibrationPoint {
             this.correction = patronReading - instrumentReading;
         }
     }
+
+    // Explicit setters to ensure methods exist even if Lombok annotation processing is unavailable
+    public void setCalibrationSession(CalibrationSession calibrationSession) {
+        this.calibrationSession = calibrationSession;
+    }
+
+    public void setPointOrder(int pointOrder) {
+        this.pointOrder = Integer.valueOf(pointOrder);
+    }
+
+    public void setPointOrder(Integer pointOrder) {
+        this.pointOrder = pointOrder;
+    }
+
+    public void setPatronReading(double patronReading) {
+        this.patronReading = Double.valueOf(patronReading);
+    }
+
+    public void setPatronReading(Double patronReading) {
+        this.patronReading = patronReading;
+    }
+
+    public void setInstrumentReading(double instrumentReading) {
+        this.instrumentReading = Double.valueOf(instrumentReading);
+    }
+
+    public void setInstrumentReading(Double instrumentReading) {
+        this.instrumentReading = instrumentReading;
+    }
+
+    public void setMetadata(String metadata) {
+        this.metadata = metadata;
+    }
 }

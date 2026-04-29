@@ -342,6 +342,67 @@
                 </div>
             </div>
             
+            <!-- Integración: Formulario de Documentos (Logtag / Sensores) dentro de Ensayos -->
+            <div class="form-section">
+                <h2>Subir Documento (Logtag / Sensores)</h2>
+                <p style="margin-bottom:12px;color:var(--color-text-light);">Sube PDFs, CSV o Excel. El sistema detecta si contiene sensores SIVCO o es un Logtag.</p>
+                <form id="formLogtag" class="form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ensayo (opcional)</label>
+                            <select id="logtagEnsayo">
+                                <option value="">Sin ensayo asociado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Documento *</label>
+                            <select id="logtagCategoria" required>
+                                <option value="">Selecciona el tipo...</option>
+                                <option value="LOGTAG">LOGTAG (formato distinto)</option>
+                                <option value="SENSORES">PDF con Sensores</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Archivo (PDF, CSV, Excel) *</label>
+                            <input type="file" id="logtagArchivo" accept=".pdf,.csv,.xlsx,.xls" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <input type="text" id="logtagDescripcion" placeholder="Descripción del documento">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;">
+                            <button type="button" class="btn btn-info" onclick="subirLogtagDocumento()" style="width:100%;">Subir Documento</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="list-section">
+                <h2>Documentos Registrados</h2>
+                <div class="form-row" style="margin-bottom:12px;">
+                    <div class="form-group">
+                        <label>Filtrar por Categoría</label>
+                        <select id="logtagFiltroCategoria" onchange="filtrarLogtags()">
+                            <option value="">Todas</option>
+                            <option value="LOGTAG">LOGTAG</option>
+                            <option value="SENSORES">Con Sensores</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Filtrar por Ensayo</label>
+                        <select id="logtagFiltroEnsayo" onchange="filtrarLogtags()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="logtagList" class="items-list">
+                    <p class="loading">Cargando documentos...</p>
+                </div>
+            </div>
+
 
             <!-- Correcciones por ensayo se migraron a nivel de sensor; listado legado eliminado del UI -->
 
@@ -351,6 +412,10 @@
                     <p class="loading">Cargando ensayos...</p>
                 </div>
             </div>
+
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+            
         </section>
 
         <!-- Análisis Section -->
@@ -936,6 +1001,8 @@ API REST disponible en puerto 8080.
                 </div>
             </div>
         </section>
+
+        <!-- Logtag integrado en Ensayos; sección dedicada eliminada -->
 
     </div>
 

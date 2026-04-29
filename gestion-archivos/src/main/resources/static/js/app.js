@@ -165,6 +165,8 @@ function showSection(sectionId) {
         } else if (sectionId === 'ensayos') {
             cargarSelectsEnsayos();
             actualizarListaCorrecciones();
+            // Inicializar la sección de documentos integrada (logtag)
+            cargarLogtagsInicial();
         } else if (sectionId === 'analisis') {
             cargarSelectsAnalisis();
         } else if (sectionId === 'reportes') {
@@ -416,14 +418,38 @@ function setupEnsayoModelButtons() {
     const selectedSpan = document.getElementById('ensayoModelSelected');
     const hidden = document.getElementById('ensayoModeloSeleccionado');
     if (!buttons || !selectedSpan || !hidden) return;
+    const labelMap = {
+        'LINEAR': 'Lineal',
+        'QUADRATIC': 'Cuadrático',
+        'CUBIC': 'Cúbica'
+    };
+
+    // Restore initial selection if hidden has a value
+    if (hidden.value) {
+        buttons.forEach(b => {
+            if (b.getAttribute('data-model') === hidden.value) {
+                b.classList.add('active');
+                selectedSpan.textContent = labelMap[hidden.value] || hidden.value;
+            }
+        });
+    }
+
     buttons.forEach(btn => {
         btn.addEventListener('click', () => {
-            // toggle active state
-            buttons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const m = btn.getAttribute('data-model');
-            selectedSpan.textContent = m;
-            hidden.value = m;
+            const isActive = btn.classList.contains('active');
+            if (isActive) {
+                // deselect
+                btn.classList.remove('active');
+                selectedSpan.textContent = 'Ninguno';
+                hidden.value = '';
+            } else {
+                // select this and clear others
+                buttons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const m = btn.getAttribute('data-model');
+                selectedSpan.textContent = labelMap[m] || m;
+                hidden.value = m;
+            }
         });
     });
 }
@@ -3627,6 +3653,274 @@ function limpiarFiltroAnormales() {
     filtrosGraficas.anormales = null;
     actualizarGraficaIndividual('anormales', datosAnalisisOriginales);
     showToast('Filtro de anormales limpiado', 'info');
+}
+
+// ====================================
+// LOGTAG - FUNCIONES
+// ====================================
+
+/**
+ * Cargar selects de logtag al iniciar la sección
+ */
+async function cargarLogtagsInicial() {
+    try {
+        // Cargar ensayos en los selects
+        const ensayos = await obtenerEnsayos();
+        
+        const selectEnsayo = document.getElementById('logtagEnsayo');
+        if (selectEnsayo) {
+            selectEnsayo.innerHTML = '<option value="">Sin ensayo asociado</option>' +
+                ensayos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+        }
+        
+        const selectFiltroEnsayo = document.getElementById('logtagFiltroEnsayo');
+        if (selectFiltroEnsayo) {
+            selectFiltroEnsayo.innerHTML = '<option value="">Todos</option>' +
+                ensayos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+        }
+        
+        // Cargar estadísticas
+        await actualizarEstadisticasLogtag();
+        
+        // Cargar lista de documentos
+        await cargarListaLogtags();
+        
+    } catch (error) {
+        console.error('Error al inicializar logtags:', error);
+    }
+}
+
+/**
+ * Actualizar estadísticas de logtag
+ */
+async function actualizarEstadisticasLogtag() {
+    try {
+        const stats = await obtenerEstadisticasLogtag();
+        document.getElementById('logtagTotal').textContent = stats.total || 0;
+        document.getElementById('logtagCountLogtag').textContent = stats.logtags || 0;
+        document.getElementById('logtagCountSensores').textContent = stats.sensores || 0;
+    } catch (error) {
+        console.error('Error al obtener estadísticas:', error);
+    }
+}
+
+/**
+ * Subir documento logtag
+ */
+async function subirLogtagDocumento() {
+    const ensayoId = document.getElementById('logtagEnsayo').value;
+    const categoria = document.getElementById('logtagCategoria').value;
+    const archivo = document.getElementById('logtagArchivo').files[0];
+    const descripcion = document.getElementById('logtagDescripcion').value;
+    const subidoPorEl = document.getElementById('logtagSubidoPor');
+    const subidoPor = subidoPorEl ? (subidoPorEl.value || 'Sistema') : 'Sistema';
+
+    if (!categoria || !archivo) {
+        showToast('Debe seleccionar el tipo de documento y un archivo', 'warning');
+        return;
+    }
+
+    try {
+        showToast('Subiendo documento...', 'info');
+        
+        const resultado = await subirLogtag(
+            archivo, 
+            ensayoId ? parseInt(ensayoId) : null,
+            categoria,
+            descripcion,
+            subidoPor
+        );
+        
+        // Mostrar advertencia si el sistema cambió la categoría
+        if (resultado.notas) {
+            showToast(`Documento subido: ${resultado.notas}`, 'warning');
+        } else {
+            showToast('Documento subido correctamente', 'success');
+        }
+        
+        // Limpiar formulario
+        document.getElementById('formLogtag').reset();
+        
+        // Actualizar lista y estadísticas
+        await actualizarEstadisticasLogtag();
+        await cargarListaLogtags();
+        
+    } catch (error) {
+        console.error('Error al subir documento:', error);
+        showToast('Error al subir documento: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Cargar lista de documentos logtag
+ */
+async function cargarListaLogtags() {
+    const container = document.getElementById('logtagList');
+    if (!container) return;
+
+    try {
+        const documentos = await obtenerLogtags();
+        
+        if (documentos.length === 0) {
+            container.innerHTML = '<p class="loading">No hay documentos registrados</p>';
+            return;
+        }
+        container.innerHTML = documentos.map(doc => `
+            <div class="item">
+                <div class="item-header">
+                    <div class="item-title">${doc.nombreArchivo}</div>
+                    <span class="item-status status-${doc.categoria.toLowerCase()}">
+                        ${doc.categoria === 'SENSORES' ? '📡 Con Sensores' : '📄 Logtag'}
+                    </span>
+                </div>
+                <div class="item-details">
+                    <div class="detail">
+                        <span class="detail-label">Tipo</span>
+                        <span class="detail-value">${doc.tipoDocumento}</span>
+                    </div>
+                    <div class="detail">
+                        <span class="detail-label">Tamaño</span>
+                        <span class="detail-value">${formatBytes(doc.tamanioBytes)}</span>
+                    </div>
+                    <div class="detail">
+                        <span class="detail-label">Fecha</span>
+                        <span class="detail-value">${formatDate(doc.fechaSubida)}</span>
+                    </div>
+                    <div class="detail">
+                        <span class="detail-label">Ensayo</span>
+                        <span class="detail-value">${doc.ensayo?.nombre || 'N/A'}</span>
+                    </div>
+                    ${doc.descripcion ? `
+                    <div class="detail">
+                        <span class="detail-label">Descripción</span>
+                        <span class="detail-value">${doc.descripcion}</span>
+                    </div>` : ''}
+                    ${doc.sensoresDetectados ? `
+                    <div class="detail">
+                        <span class="detail-label">Sensores detectados</span>
+                        <span class="detail-value">${doc.sensoresDetectados}</span>
+                    </div>` : ''}
+                </div>
+                <div class="item-actions">
+                    <button class="btn btn-danger" onclick="eliminarLogtagUI(${doc.id})">Eliminar</button>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error al cargar lista de logtags:', error);
+        container.innerHTML = '<p class="error">Error al cargar documentos</p>';
+    }
+}
+
+/**
+ * Eliminar documento logtag desde UI
+ */
+async function eliminarLogtagUI(id) {
+    if (!confirm('¿Está seguro de eliminar este documento?')) {
+        return;
+    }
+    
+    try {
+        await eliminarLogtag(id);
+        showToast('Documento eliminado', 'success');
+        await actualizarEstadisticasLogtag();
+        await cargarListaLogtags();
+    } catch (error) {
+        console.error('Error al eliminar:', error);
+        showToast('Error al eliminar documento: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Filtrar documentos por categoría o ensayo
+ */
+async function filtrarLogtags() {
+    const categoria = document.getElementById('logtagFiltroCategoria').value;
+    const ensayoId = document.getElementById('logtagFiltroEnsayo').value;
+    const container = document.getElementById('logtagList');
+    
+    if (!container) return;
+    
+    try {
+        let documentos;
+        
+        if (categoria) {
+            documentos = await obtenerLogtagsPorCategoria(categoria);
+        } else if (ensayoId) {
+            documentos = await obtenerLogtagsPorEnsayo(parseInt(ensayoId));
+        } else {
+            documentos = await obtenerLogtags();
+        }
+        
+        // Filtrar adicionalmente por ensayo si ambos filtros están activos
+        if (ensayoId && categoria) {
+            documentos = documentos.filter(d => d.ensayo && d.ensayo.id == ensayoId);
+        } else if (ensayoId) {
+            documentos = await obtenerLogtagsPorEnsayo(parseInt(ensayoId));
+        }
+        
+        if (documentos.length === 0) {
+            container.innerHTML = '<p class="loading">No hay documentos que coincidan con los filtros</p>';
+            return;
+        }
+        
+        container.innerHTML = documentos.map(doc => `
+            <div class="item">
+                <div class="item-header">
+                    <div class="item-title">${doc.nombreArchivo}</div>
+                    <span class="item-status status-${doc.categoria.toLowerCase()}">
+                        ${doc.categoria === 'SENSORES' ? '📡 Con Sensores' : '📄 Logtag'}
+                    </span>
+                </div>
+                <div class="item-details">
+                    <div class="detail">
+                        <span class="detail-label">Tipo</span>
+                        <span class="detail-value">${doc.tipoDocumento}</span>
+                    </div>
+                    <div class="detail">
+                        <span class="detail-label">Tamaño</span>
+                        <span class="detail-value">${formatBytes(doc.tamanioBytes)}</span>
+                    </div>
+                    <div class="detail">
+                        <span class="detail-label">Fecha</span>
+                        <span class="detail-value">${formatDate(doc.fechaSubida)}</span>
+                    </div>
+                    <div class="detail">
+                        <span class="detail-label">Ensayo</span>
+                        <span class="detail-value">${doc.ensayo?.nombre || 'N/A'}</span>
+                    </div>
+                    ${doc.descripcion ? `
+                    <div class="detail">
+                        <span class="detail-label">Descripción</span>
+                        <span class="detail-value">${doc.descripcion}</span>
+                    </div>` : ''}
+                    ${doc.sensoresDetectados ? `
+                    <div class="detail">
+                        <span class="detail-label">Sensores detectados</span>
+                        <span class="detail-value">${doc.sensoresDetectados}</span>
+                    </div>` : ''}
+                </div>
+                <div class="item-actions">
+                    <button class="btn btn-danger" onclick="eliminarLogtagUI(${doc.id})">Eliminar</button>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error al filtrar logtags:', error);
+    }
+}
+
+/**
+ * Formatear bytes a formato legible
+ */
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 // Función para filtrar gráfica de boxplot
