@@ -13,7 +13,6 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.web.bind.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import com.sivco.gestion_archivos.utilidades.PdfUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -151,59 +150,11 @@ public class ReporteControlador {
     // Also supports inline viewing if Accept header includes text/html
     @GetMapping("/{ensayoId}/download/pdf")
     public ResponseEntity<byte[]> descargarReportePdf(@PathVariable Long ensayoId) {
-        try {
-            logger.info("Download PDF request for ensayoId={}", ensayoId);
-            
-            // Obtener ensayo y datos
-            com.sivco.gestion_archivos.modelos.Ensayo ensayo = ensayoServicio.obtenerEnsayo(ensayoId)
-                .orElseThrow(() -> new RuntimeException("Ensayo no encontrado"));
-            
-            com.sivco.gestion_archivos.modelos.ReporteFinal reporteFinal = 
-                generadorReporteFinal.construirReporte(ensayoId, ensayo);
-            
-            java.util.List<com.sivco.gestion_archivos.modelos.DatoEnsayoTemporal> datos = 
-                ensayoServicio.obtenerDatosTemporales(ensayoId);
-
-            byte[] pdfBytes;
-            try {
-                // Generar PDF con gráficos
-                pdfBytes = PdfUtil.generarPdfConGraficos(reporteFinal, datos);
-            } catch (Exception e) {
-                logger.error("PDF generation with charts failed for ensayoId={}: {}", ensayoId, e.toString(), e);
-                try {
-                    // Fallback: PDF sin gráficos
-                    pdfBytes = PdfUtil.generarPdfDirecto(reporteFinal);
-                } catch (Exception ex2) {
-                    logger.error("Fallback PDF failed for ensayoId={}: {}", ensayoId, ex2.getMessage());
-                    String msg = "No se pudo generar el PDF. Error: " + e.getMessage();
-                    pdfBytes = PdfUtil.createMessagePdf("Error en Reporte PDF", msg);
-                }
-            }
-
-            HttpHeaders headers = new HttpHeaders();
-            // Usa inline para visualizar en el navegador, no attachment
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            
-            // Generar nombre de archivo usando el nombre del ensayo
-            String nombreArchivo = ensayo.getNombre().replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s\\-_]", "")
-                                                      .replaceAll("\\s+", "_")
-                                                      .trim();
-            if (nombreArchivo.isEmpty()) {
-                nombreArchivo = "ensayo_" + ensayoId;
-            }
-            
-            ContentDisposition cd = ContentDisposition.inline()
-                    .filename(nombreArchivo + ".pdf")
-                    .build();
-            headers.setContentDisposition(cd);
-            headers.setCacheControl("no-cache, no-store, must-revalidate");
-            headers.setPragma("no-cache");
-            headers.setExpires(0);
-
-            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
-        } catch (Exception e) {
-            logger.error("Error generating PDF for ensayoId={}: {}", ensayoId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new byte[0]);
-        }
+        logger.info("PDF generation disabled request for ensayoId={}", ensayoId);
+        String msg = "Generación de PDF deshabilitada en esta instancia.";
+        byte[] payload = msg.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+        return new ResponseEntity<>(payload, headers, HttpStatus.GONE);
     }
 }

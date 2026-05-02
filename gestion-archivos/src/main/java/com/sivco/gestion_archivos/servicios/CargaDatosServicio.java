@@ -52,10 +52,12 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.time.format.DateTimeFormatter;
 import com.sivco.gestion_archivos.modelos.calibration.RegressionModel;
 import com.sivco.gestion_archivos.modelos.calibration.RegressionModelType;
 
@@ -84,39 +86,73 @@ public class CargaDatosServicio {
     
     @Autowired
     private SivcoLoggerPdfService sivcoLoggerPdfService;
+    
+    @Autowired
+    private com.sivco.gestion_archivos.repositorios.DatoEnsayoTemporalRepositorio datoEnsayoTemporalRepositorio;
 
     public void guardarDatosTemporalesBatch(Long ensayoId, List<DatoEnsayoTemporal> datos) {
         ensayoServicio.guardarDatosTemporalesBatch(ensayoId, datos);
     }
     
     /**
-     * Método principal que detecta el tipo de archivo y carga los datos correspondientes
+     * Método principal que detecta el tipo de archivo y carga los datos correspondientes.
      */
-    public List<DatoEnsayoTemporal> cargarDatos(MultipartFile archivo, Long ensayoId, Set<String> sensoresPermitidos) throws IOException {
-        String filename = archivo.getOriginalFilename().toLowerCase();
-        
+    public List<DatoEnsayoTemporal> cargarDatosGenerico(MultipartFile archivo, Long ensayoId, Set<String> sensoresPermitidos) throws IOException {
+        String filename = archivo.getOriginalFilename() != null ? archivo.getOriginalFilename().toLowerCase() : "";
+
         // Si es PDF, intentar cargar como SIVCO-LOGGER
         if (filename.endsWith(".pdf")) {
             logger.info("Detectado archivo PDF: {}", archivo.getOriginalFilename());
             try {
                 return cargarDatosPdfSivcoLogger(archivo, ensayoId);
             } catch (Exception e) {
-                logger.warn("No se pudo cargar como PDF SIVCO-LOGGER, integrando registro de error: {}", e.getMessage());
+                logger.warn("No se pudo cargar como PDF SIVCO-LOGGER: {}", e.getMessage());
                 throw new IOException("El archivo PDF no tiene el formato esperado de SIVCO-LOGGER: " + e.getMessage(), e);
             }
         }
+
         // Si es CSV, usar el método existente
         else if (filename.endsWith(".csv")) {
             logger.info("Detectado archivo CSV: {}", archivo.getOriginalFilename());
             return cargarDatosCSV(archivo, ensayoId, sensoresPermitidos);
         }
+
         // Si es Excel, usar POI para parsear
         else if (filename.endsWith(".xlsx") || filename.endsWith(".xls") || filename.endsWith(".xlsm")) {
             logger.info("Detectado archivo Excel: {}", archivo.getOriginalFilename());
             return cargarDatosExcel(archivo, ensayoId);
         }
-        
+
         throw new IOException("Formato de archivo no soportado. Use CSV, Excel o PDF SIVCO-LOGGER");
+    }
+
+    /**
+     * Compatibilidad: wrapper para llamadas antiguas que usan el nombre `cargarDatos`.
+     */
+    public List<DatoEnsayoTemporal> cargarDatos(MultipartFile archivo, Long ensayoId, Set<String> sensoresPermitidos) throws IOException {
+        return cargarDatosGenerico(archivo, ensayoId, sensoresPermitidos);
+    }
+
+    /**
+     * Obtener datos temporales de un ensayo filtrando por un fragmento en el campo 'fuente'
+     */
+    public List<DatoEnsayoTemporal> obtenerDatosPorEnsayoYFuente(Long ensayoId, String fuenteFragment) {
+        // Intentar obtener desde memoria primero
+        List<DatoEnsayoTemporal> memoria = ensayoServicio.obtenerDatosTemporales(ensayoId);
+        if (memoria != null && !memoria.isEmpty()) {
+            java.util.List<DatoEnsayoTemporal> filtrados = memoria.stream()
+                .filter(d -> d.getFuente() != null && d.getFuente().contains(fuenteFragment))
+                .collect(java.util.stream.Collectors.toList());
+            if (!filtrados.isEmpty()) return filtrados;
+        }
+
+        // Consultar repositorio como respaldo
+        try {
+            return datoEnsayoTemporalRepositorio.findByEnsayoIdAndFuenteContaining(ensayoId, fuenteFragment);
+        } catch (Exception e) {
+            logger.warn("Error consultando DatoEnsayoTemporalRepositorio: {}", e.getMessage());
+            return new ArrayList<>();
+        }
     }
 
     /**
@@ -129,7 +165,27 @@ public class CargaDatosServicio {
         List<DatoEnsayoTemporal> resultado = new ArrayList<>();
         DataFormatter formatter = new DataFormatter();
 
-        try (Workbook workbook = WorkbookFactory.create(archivo.getInputStream())) {
+        byte[] bytes = archivo.getBytes();
+
+        Workbook workbook = null;
+        try {
+            workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes));
+        } catch (org.apache.poi.util.RecordFormatException rfe) {
+            logger.warn("RecordFormatException al crear Workbook, intentando fallback HSSF: {}", rfe.getMessage());
+            try {
+                if (looksLikePOIFS(bytes)) {
+                    POIFSFileSystem fs = new POIFSFileSystem(new ByteArrayInputStream(bytes));
+                    workbook = new HSSFWorkbook(fs);
+                } else {
+                    throw rfe;
+                }
+            } catch (Exception ex) {
+                logger.error("Fallback HSSF fallido: {}", ex.getMessage(), ex);
+                throw new IOException("El archivo Excel está corrupto o en un formato no soportado: " + ex.getMessage(), ex);
+            }
+        }
+
+        try {
             Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
             if (sheet == null) {
                 throw new IOException("El archivo Excel no contiene hojas");
@@ -278,6 +334,9 @@ public class CargaDatosServicio {
                 seq++;
             }
 
+        } catch (org.apache.poi.util.RecordFormatException rfe) {
+            logger.warn("Error al leer archivo Excel (RecordFormatException): {}", rfe.getMessage());
+            throw new IOException("El archivo Excel está corrupto o en un formato no soportado: " + rfe.getMessage(), rfe);
         } catch (Exception e) {
             logger.error("Error procesando Excel: {}", e.getMessage(), e);
             throw new IOException("Error procesando archivo Excel: " + e.getMessage(), e);
@@ -1036,7 +1095,7 @@ public class CargaDatosServicio {
                     String obs = optEns.get().getObservaciones();
                     if (obs != null) {
                         // look for pattern ModeloPreferido:VALUE (case-insensitive)
-                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("ModeloPreferido\s*:\s*([A-Za-z0-9_\-]+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(obs);
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("ModeloPreferido\\s*:\\s*([A-Za-z0-9_\\\\-]+)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(obs);
                         if (m.find()) {
                             String val = m.group(1).trim();
                             ensayoPreferredModel = mapStringToModelType(val);
@@ -1769,6 +1828,13 @@ public class CargaDatosServicio {
         
         // Convertir a minúsculas y reemplazar espacios con guión bajo
         String normalizado = sensorOriginal.toLowerCase().trim();
+
+        // Correcciones rápidas de errores tipográficos comunes en cabeceras/logs
+        normalizado = normalizado.replaceAll("sensr[o]?", "sensor"); // sensro, sensr -> sensor
+        normalizado = normalizado.replaceAll("senser", "sensor");
+        normalizado = normalizado.replaceAll("senso\b", "sensor");
+        normalizado = normalizado.replaceAll("senn?or", "sensor");
+
         normalizado = normalizado.replace(" ", "_");
         
         // Si el sensor está en formato "sensor X" o "sensor_X", asegurarse de que sea "sensor_X"
@@ -1815,4 +1881,19 @@ public class CargaDatosServicio {
         tokens.add(sb.toString());
         return tokens.toArray(new String[0]);
     }
+
+    /**
+     * Heurística simple para detectar archivos OLE2 (antiguos .xls) verificando
+     * los primeros 8 bytes del encabezado: D0 CF 11 E0 A1 B1 1A E1
+     */
+    private boolean looksLikePOIFS(byte[] bytes) {
+        if (bytes == null || bytes.length < 8) return false;
+        int[] sig = {0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1};
+        for (int i = 0; i < 8; i++) {
+            int b = bytes[i] & 0xFF;
+            if (b != sig[i]) return false;
+        }
+        return true;
+    }
+
 }

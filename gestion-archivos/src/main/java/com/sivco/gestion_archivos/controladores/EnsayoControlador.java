@@ -121,4 +121,29 @@ public class EnsayoControlador {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @PostMapping("/{ensayoId}/mover-serie")
+    public ResponseEntity<Map<String, Object>> moverSerieTemporal(
+            @PathVariable Long ensayoId,
+            @RequestBody Map<String, Object> body) {
+        try {
+            long offsetSeconds = 0L;
+            if (body.containsKey("offsetSeconds")) {
+                Object o = body.get("offsetSeconds");
+                offsetSeconds = Long.parseLong(o.toString());
+            } else if (body.containsKey("offsetIso")) {
+                String iso = body.get("offsetIso").toString();
+                java.time.Duration d = java.time.Duration.parse(iso);
+                offsetSeconds = d.getSeconds();
+            } else {
+                return ResponseEntity.badRequest().body(Map.of("error", "Se requiere 'offsetSeconds' o 'offsetIso' en el body"));
+            }
+
+            int afectados = ensayoServicio.desplazarSerieTemporal(ensayoId, offsetSeconds);
+
+            return ResponseEntity.ok(Map.of("afectados", afectados, "offsetSeconds", offsetSeconds));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
 }

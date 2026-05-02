@@ -365,6 +365,7 @@
                     </div>
 
                     <div class="form-row">
+                      
                         <div class="form-group">
                             <label>Archivo (PDF, CSV, Excel) *</label>
                             <input type="file" id="logtagArchivo" accept=".pdf,.csv,.xlsx,.xls" required>
@@ -394,6 +395,18 @@
                     <div class="form-group">
                         <label>Filtrar por Ensayo</label>
                         <select id="logtagFiltroEnsayo" onchange="filtrarLogtags()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Filtrar por Sensor</label>
+                        <select id="logtagFiltroSensor" onchange="filtrarLogtags()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Filtrar por Lote</label>
+                        <select id="logtagFiltroLote" onchange="filtrarLogtags()">
                             <option value="">Todos</option>
                         </select>
                     </div>
@@ -431,6 +444,13 @@
                             <option value="">Selecciona un ensayo</option>
                         </select>
                     </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>Documentos Logtag del Ensayo</h2>
+                <div id="analisisLogtags" class="items-list">
+                    <p class="loading">Selecciona un ensayo para ver documentos Logtag asociados</p>
                 </div>
             </div>
 

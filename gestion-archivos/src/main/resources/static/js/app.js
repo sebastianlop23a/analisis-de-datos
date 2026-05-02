@@ -493,7 +493,16 @@ async function submitFormDato() {
 
 async function cargarSelectsEnsayos() {
     try {
-        const ensayos = await obtenerEnsayos();
+        let ensayos = await obtenerEnsayos();
+        // Si la primera llamada no devuelve ensayos (API no lista aún), reintentar brevemente
+        if ((!ensayos || ensayos.length === 0) && typeof window !== 'undefined') {
+            const maxRetries = 3;
+            for (let attempt = 1; attempt <= maxRetries && (!ensayos || ensayos.length === 0); attempt++) {
+                console.warn(`[cargarSelectsEnsayos] No se obtuvieron ensayos, reintento ${attempt}/${maxRetries}...`);
+                await new Promise(resolve => setTimeout(resolve, 800 * attempt));
+                ensayos = await obtenerEnsayos();
+            }
+        }
         const ensayosActivos = ensayos.filter(e => e.estado === ESTADOS.EN_PROGRESO);
 
         // Select para crear dato
@@ -850,6 +859,9 @@ async function cargarAnalisis() {
             // Análisis por sensor
             crearAnalisisPorSensor(datosTemporales, analisis.media);
 
+                // Cargar documentos Logtag asociados al ensayo y mostrarlos en la sección de Análisis
+                await cargarLogtagsEnsayo(parseInt(ensayoId));
+
             // Crear gráficas por sensor
             crearGraficasPorSensor(datosTemporales);
 
@@ -874,6 +886,111 @@ async function cargarAnalisis() {
         }
     } catch (error) {
         console.error('Error al cargar análisis:', error);
+    }
+}
+
+/**
+ * Cargar y mostrar documentos Logtag asociados a un ensayo (en la sección de Análisis)
+ */
+async function cargarLogtagsEnsayo(ensayoId) {
+    const container = document.getElementById('analisisLogtags');
+    if (!container) return;
+
+    try {
+        const documentos = await obtenerLogtagsPorEnsayo(ensayoId);
+        // Filtrar solo los que son categoría LOGTAG
+        const logtags = (documentos || []).filter(d => d.categoria === 'LOGTAG');
+
+        if (!logtags || logtags.length === 0) {
+            container.innerHTML = '<p class="loading">No hay documentos Logtag asociados a este ensayo</p>';
+            return;
+        }
+
+        // Construir selector de documentos + lista breve
+        const selectHtml = `
+            <div style="margin-bottom:10px;">
+                <label>Ver datos de documento:</label>
+                <select id="analisisDocumentoSelect" onchange="onAnalisisDocumentoChange()">
+                    <option value="">Todos los documentos</option>
+                    ${logtags.map(d => `<option value="${d.id}">${d.nombreArchivo}</option>`).join('')}
+                </select>
+            </div>`;
+
+        const listHtml = logtags.map(doc => `
+            <div class="item">
+                <div class="item-header">
+                    <div class="item-title">${doc.nombreArchivo}</div>
+                    <span class="item-status status-${doc.categoria.toLowerCase()}">${doc.categoria}</span>
+                </div>
+                <div class="item-details">
+                    <div class="detail"><span class="detail-label">Tipo</span><span class="detail-value">${doc.tipoDocumento}</span></div>
+                    <div class="detail"><span class="detail-label">Fecha</span><span class="detail-value">${formatDate(doc.fechaSubida)}</span></div>
+                    <div class="detail"><span class="detail-label">Lote</span><span class="detail-value">${doc.lote || 'N/A'}</span></div>
+                    ${doc.sensoresDetectados ? `
+                    <div class="detail"><span class="detail-label">Sensores detectados</span><span class="detail-value">${doc.sensoresDetectados}</span></div>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = selectHtml + listHtml;
+    } catch (error) {
+        console.error('Error cargando documentos Logtag del ensayo:', error);
+        container.innerHTML = '<p class="error">Error cargando documentos Logtag</p>';
+    }
+}
+
+// Handler cuando se selecciona un documento en el panel de análisis
+async function onAnalisisDocumentoChange() {
+    const sel = document.getElementById('analisisDocumentoSelect');
+    if (!sel) return;
+    const docId = sel.value;
+    const ensayoId = document.getElementById('analisisEnsayo').value;
+
+    if (!docId) {
+        // Restaurar vista completa del ensayo
+        await cargarAnalisis();
+        return;
+    }
+
+    // Cargar datos asociados al documento y actualizar gráficas
+    try {
+        const datos = await obtenerDatosPorDocumento(parseInt(docId));
+        if (!datos || datos.length === 0) {
+            showToast('No hay datos asociados a este documento', 'warning');
+            return;
+        }
+
+        // Actualizar gráficas usando sólo los datos del documento
+        const valoresOrdenados = datos.map(d => d.valor).sort((a, b) => a - b);
+        const q1 = calcularCuartil(valoresOrdenados, 0.25);
+        const q2 = calcularCuartil(valoresOrdenados, 0.50);
+        const q3 = calcularCuartil(valoresOrdenados, 0.75);
+
+        document.getElementById('statTotal').textContent = datos.length;
+        document.getElementById('statMedia').textContent = (datos.reduce((s,d)=>s+d.valor,0)/datos.length).toFixed(2);
+        document.getElementById('statDesv').textContent = ( (function(){
+            const mean = datos.reduce((s,d)=>s+d.valor,0)/datos.length;
+            const v = Math.sqrt(datos.reduce((s,d)=>s+Math.pow(d.valor-mean,2),0)/datos.length);
+            return v;
+        })()).toFixed(2);
+        document.getElementById('statMax').textContent = Math.max(...valoresOrdenados).toFixed(2);
+        document.getElementById('statMin').textContent = Math.min(...valoresOrdenados).toFixed(2);
+
+        document.getElementById('statQ1').textContent = q1.toFixed(2);
+        document.getElementById('statQ2').textContent = q2.toFixed(2);
+        document.getElementById('statQ3').textContent = q3.toFixed(2);
+
+        crearGraficoDistribucion(datos, parseFloat(document.getElementById('statMedia').textContent) || 0);
+        crearGraficoAnormales(datos);
+        crearGraficoBoxplot({ q1, mediana: q2, q3, minimo: Math.min(...valoresOrdenados), maximo: Math.max(...valoresOrdenados), media: parseFloat(document.getElementById('statMedia').textContent) }, valoresOrdenados);
+        crearGraficoCuartiles({ q1, q3, media: parseFloat(document.getElementById('statMedia').textContent), maximo: Math.max(...valoresOrdenados), minimo: Math.min(...valoresOrdenados) });
+        crearGraficoTemporal(datos);
+        crearAnalisisPorSensor(datos, parseFloat(document.getElementById('statMedia').textContent));
+        crearGraficasPorSensor(datos);
+        llenarTablaDatos(datos);
+    } catch (e) {
+        console.error('Error cargando datos por documento:', e);
+        showToast('Error cargando datos del documento', 'error');
     }
 }
 
@@ -3712,6 +3829,7 @@ async function subirLogtagDocumento() {
     const categoria = document.getElementById('logtagCategoria').value;
     const archivo = document.getElementById('logtagArchivo').files[0];
     const descripcion = document.getElementById('logtagDescripcion').value;
+    const lote = document.getElementById('logtagLote') ? document.getElementById('logtagLote').value : '';
     const subidoPorEl = document.getElementById('logtagSubidoPor');
     const subidoPor = subidoPorEl ? (subidoPorEl.value || 'Sistema') : 'Sistema';
 
@@ -3724,11 +3842,12 @@ async function subirLogtagDocumento() {
         showToast('Subiendo documento...', 'info');
         
         const resultado = await subirLogtag(
-            archivo, 
+            archivo,
             ensayoId ? parseInt(ensayoId) : null,
             categoria,
             descripcion,
-            subidoPor
+            subidoPor,
+            lote
         );
         
         // Mostrar advertencia si el sistema cambió la categoría
@@ -3760,15 +3879,40 @@ async function cargarListaLogtags() {
 
     try {
         const documentos = await obtenerLogtags();
-        
+        // Construir lista de sensores y lotes disponibles a partir de los documentos
+        const sensorSet = new Set();
+        const loteSet = new Set();
+        documentos.forEach(doc => {
+            if (doc.sensoresDetectados) {
+                doc.sensoresDetectados.split(',').forEach(s => sensorSet.add(s.trim()));
+            }
+            if (doc.lote) {
+                loteSet.add(doc.lote);
+            }
+        });
+        const selectSensor = document.getElementById('logtagFiltroSensor');
+        if (selectSensor) {
+            selectSensor.innerHTML = '<option value="">Todos</option>' +
+                Array.from(sensorSet).map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+        const selectLote = document.getElementById('logtagFiltroLote');
+        if (selectLote) {
+            selectLote.innerHTML = '<option value="">Todos</option>' +
+                Array.from(loteSet).map(l => `<option value="${l}">${l}</option>`).join('');
+        }
+
         if (documentos.length === 0) {
             container.innerHTML = '<p class="loading">No hay documentos registrados</p>';
             return;
         }
+
         container.innerHTML = documentos.map(doc => `
             <div class="item">
                 <div class="item-header">
                     <div class="item-title">${doc.nombreArchivo}</div>
+                    <div style="margin-left:12px;display:flex;gap:6px;align-items:center;">
+                        ${(doc.sensoresDetectados || '').split(',').filter(Boolean).map(s => `<span class="badge">${s.trim()}</span>`).join('')}
+                    </div>
                     <span class="item-status status-${doc.categoria.toLowerCase()}">
                         ${doc.categoria === 'SENSORES' ? '📡 Con Sensores' : '📄 Logtag'}
                     </span>
@@ -3790,6 +3934,11 @@ async function cargarListaLogtags() {
                         <span class="detail-label">Ensayo</span>
                         <span class="detail-value">${doc.ensayo?.nombre || 'N/A'}</span>
                     </div>
+                    ${doc.lote ? `
+                    <div class="detail">
+                        <span class="detail-label">Lote</span>
+                        <span class="detail-value">${doc.lote}</span>
+                    </div>` : ''}
                     ${doc.descripcion ? `
                     <div class="detail">
                         <span class="detail-label">Descripción</span>
@@ -3838,6 +3987,10 @@ async function eliminarLogtagUI(id) {
 async function filtrarLogtags() {
     const categoria = document.getElementById('logtagFiltroCategoria').value;
     const ensayoId = document.getElementById('logtagFiltroEnsayo').value;
+    const sensorFiltroEl = document.getElementById('logtagFiltroSensor');
+    const sensorFiltro = sensorFiltroEl ? sensorFiltroEl.value : '';
+    const loteFiltroEl = document.getElementById('logtagFiltroLote');
+    const loteFiltro = loteFiltroEl ? loteFiltroEl.value : '';
     const container = document.getElementById('logtagList');
     
     if (!container) return;
@@ -3860,6 +4013,16 @@ async function filtrarLogtags() {
             documentos = await obtenerLogtagsPorEnsayo(parseInt(ensayoId));
         }
         
+        // Aplicar filtro por sensor si se seleccionó uno
+        if (sensorFiltro && documentos && documentos.length > 0) {
+            documentos = documentos.filter(d => d.sensoresDetectados && d.sensoresDetectados.split(',').map(s => s.trim()).includes(sensorFiltro));
+        }
+
+        // Aplicar filtro por lote si se seleccionó uno
+        if (loteFiltro && documentos && documentos.length > 0) {
+            documentos = documentos.filter(d => d.lote && d.lote === loteFiltro);
+        }
+
         if (documentos.length === 0) {
             container.innerHTML = '<p class="loading">No hay documentos que coincidan con los filtros</p>';
             return;
@@ -3869,6 +4032,9 @@ async function filtrarLogtags() {
             <div class="item">
                 <div class="item-header">
                     <div class="item-title">${doc.nombreArchivo}</div>
+                    <div style="margin-left:12px;display:flex;gap:6px;align-items:center;">
+                        ${(doc.sensoresDetectados || '').split(',').filter(Boolean).map(s => `<span class="badge">${s.trim()}</span>`).join('')}
+                    </div>
                     <span class="item-status status-${doc.categoria.toLowerCase()}">
                         ${doc.categoria === 'SENSORES' ? '📡 Con Sensores' : '📄 Logtag'}
                     </span>

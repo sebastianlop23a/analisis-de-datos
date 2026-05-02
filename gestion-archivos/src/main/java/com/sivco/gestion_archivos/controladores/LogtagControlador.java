@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Controlador REST para documentos Logtag
@@ -42,7 +43,8 @@ public class LogtagControlador {
             @RequestParam(value = "ensayoId", required = false) Long ensayoId,
             @RequestParam("categoria") String categoria,
             @RequestParam(value = "descripcion", required = false) String descripcion,
-            @RequestParam(value = "subidoPor", required = false) String subidoPor) {
+            @RequestParam(value = "subidoPor", required = false) String subidoPor,
+            @RequestParam(value = "lote", required = false) String lote) {
         
         try {
             if (archivo.isEmpty()) {
@@ -58,11 +60,12 @@ public class LogtagControlador {
             }
             
             LogtagDocumento documento = servicio.subirDocumento(
-                archivo, 
-                ensayoId, 
+                archivo,
+                ensayoId,
                 categoria,
-                descripcion, 
-                subidoPor != null ? subidoPor : "Sistema"
+                descripcion,
+                subidoPor != null ? subidoPor : "Sistema",
+                lote
             );
             
             logger.info("Documento subido exitosamente: ID={}, Categoría={}", 
@@ -163,5 +166,34 @@ public class LogtagControlador {
             "logtags", servicio.contarLogtags(),
             "sensores", servicio.contarSensores()
         ));
+    }
+
+    /**
+     * GET /api/logtag/{id}/datos - Obtener datos temporales asociados a un documento (por marcador en 'fuente')
+     */
+    @GetMapping("/{id}/datos")
+    public ResponseEntity<?> obtenerDatosPorDocumento(@PathVariable Long id) {
+        try {
+            Optional<LogtagDocumento> docOpt = servicio.buscarPorId(id);
+            if (docOpt.isEmpty()) return ResponseEntity.notFound().build();
+            LogtagDocumento doc = docOpt.get();
+            if (doc.getEnsayo() == null) return ResponseEntity.ok(List.of());
+
+            Long ensayoId = doc.getEnsayo().getId();
+            // Buscar datos temporales cuyo campo 'fuente' contenga el marcador 'DOC:<id>'
+            List<com.sivco.gestion_archivos.modelos.DatoEnsayoTemporal> datos =
+                servicio.obtenerDatosPorDocumento(ensayoId, id);
+
+            // Convertir a DTO simple
+            List<com.sivco.gestion_archivos.dto.DatoTemporalDTO> dto = datos.stream()
+                .map(d -> new com.sivco.gestion_archivos.dto.DatoTemporalDTO(
+                    d.getTimestamp(), d.getValor(), d.getAnormal(), d.getSensor(), d.getNumeroSecuencia()
+                ))
+                .collect(java.util.stream.Collectors.toList());
+
+            return ResponseEntity.ok(dto);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 }

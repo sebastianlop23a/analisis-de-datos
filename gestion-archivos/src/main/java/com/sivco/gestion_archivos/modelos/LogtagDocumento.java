@@ -59,4 +59,7 @@ public class LogtagDocumento {
     
     @Column(columnDefinition = "LONGTEXT")
     private String sensoresDetectados;
+    
+    // Identificador de lote para agrupar subidas relacionadas (opcional)
+    private String lote;
 }

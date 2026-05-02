@@ -48,39 +48,72 @@ public class LogtagDocumentoServicio {
      * Subir un documento logtag y procesarlo como datos de ensayo
      */
     @Transactional
-    public LogtagDocumento subirDocumento(
-            MultipartFile archivo, 
-            Long ensayoId, 
+        public LogtagDocumento subirDocumento(
+            MultipartFile archivo,
+            Long ensayoId,
             String categoriaSeleccionada,
-            String descripcion, 
-            String subidoPor) throws IOException {
+            String descripcion,
+            String subidoPor,
+            String lote) throws IOException {
         
         logger.info("Subiendo documento: {} - Categoría: {} - Ensayo: {}", 
-                    archivo.getOriginalFilename(), categoriaSeleccionada, ensayoId);
+                archivo.getOriginalFilename(), categoriaSeleccionada, ensayoId);
         
         // Extraer texto del PDF para análisis
         String contenidoTexto = null;
         Set<String> sensoresDetectados = new HashSet<>();
         int datosProcesados = 0;
+
+        // Crear y guardar entidad documento primero para poder marcar los datos con su id
+        LogtagDocumento documento = new LogtagDocumento();
+        documento.setNombreArchivo(archivo.getOriginalFilename());
+        documento.setTipoDocumento(obtenerTipoDesdeNombre(archivo.getOriginalFilename()));
+        documento.setCategoria(categoriaSeleccionada);
+        documento.setFechaSubida(LocalDateTime.now());
+        documento.setDescripcion(descripcion);
+        documento.setSubidoPor(subidoPor);
+        documento.setProcesado(false);
+        documento.setTamanioBytes(archivo.getSize());
+        documento.setLote(lote);
+        if (ensayoId != null) {
+            Optional<Ensayo> ensayoOpt = ensayoServicio.obtenerEnsayo(ensayoId);
+            ensayoOpt.ifPresent(documento::setEnsayo);
+        }
+        // Guardar documento inicial (marcado no procesado)
+        documento = repositorio.save(documento);
         
         if (archivo.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
             try {
                 contenidoTexto = extraerTextoPDF(archivo);
                 sensoresDetectados = detectarSensoresEnTexto(contenidoTexto);
+                // Intentar detectar sensor también desde el nombre del archivo (ej: "sensor 1.pdf")
+                try {
+                    String sensorFromName = detectarSensorDesdeNombreArchivo(archivo.getOriginalFilename());
+                    if (sensorFromName != null && !sensorFromName.isEmpty()) {
+                        sensoresDetectados.add(sensorFromName);
+                        logger.info("Sensor detectado desde nombre de archivo: {}", sensorFromName);
+                    }
+                } catch (Exception e) {
+                    logger.debug("No se pudo detectar sensor desde el nombre del archivo: {}", e.getMessage());
+                }
                 logger.info("Sensores detectados en documento: {}", sensoresDetectados);
                 
                 // Si es LOGTAG y tiene ensayo, procesar los datos
-                if (CATEGORIA_LOGTAG.equals(categoriaSeleccionada) && ensayoId != null) {
+                    if (CATEGORIA_LOGTAG.equals(categoriaSeleccionada) && ensayoId != null) {
                     logger.info("Procesando datos del PDF logtag para ensayo: {}", ensayoId);
                     try {
                         // Usar el mismo método de carga de PDF pero para formato logtag
-                        List<DatoEnsayoTemporal> datos = cargaDatosServicio.cargarDatosPdfSivcoLogger(archivo, ensayoId);
-                        if (datos != null && !datos.isEmpty()) {
-                            datosProcesados = datos.size();
-                            // Guardar los datos en el ensayo
-                            cargaDatosServicio.guardarDatosTemporalesBatch(ensayoId, datos);
-                            logger.info("Datos procesados y guardados: {} registros", datosProcesados);
-                        }
+                            List<DatoEnsayoTemporal> datos = cargaDatosServicio.cargarDatosPdfSivcoLogger(archivo, ensayoId);
+                            if (datos != null && !datos.isEmpty()) {
+                                datosProcesados = datos.size();
+                                // Marcar cada dato con referencia al documento para poder filtrarlo después
+                                for (DatoEnsayoTemporal d : datos) {
+                                    d.setFuente("DOC:" + documento.getId() + "|" + documento.getNombreArchivo());
+                                }
+                                // Guardar los datos en el ensayo
+                                cargaDatosServicio.guardarDatosTemporalesBatch(ensayoId, datos);
+                                logger.info("Datos procesados y guardados: {} registros", datosProcesados);
+                            }
                     } catch (Exception e) {
                         logger.warn("No se pudieron procesar los datos del PDF: {}", e.getMessage());
                     }
@@ -103,6 +136,18 @@ public class LogtagDocumentoServicio {
                         if (d.getSensor() != null && !d.getSensor().isEmpty()) {
                             sensoresDetectados.add(d.getSensor().toLowerCase());
                         }
+                        // Marcar fuente con documento
+                        d.setFuente("DOC:" + documento.getId() + "|" + documento.getNombreArchivo());
+                    }
+                    // Intentar detectar sensor también desde el nombre del archivo (ej: "sensor 1.xlsx")
+                    try {
+                        String sensorFromName = detectarSensorDesdeNombreArchivo(archivo.getOriginalFilename());
+                        if (sensorFromName != null && !sensorFromName.isEmpty()) {
+                            sensoresDetectados.add(sensorFromName);
+                            logger.info("Sensor detectado desde nombre de archivo (Excel): {}", sensorFromName);
+                        }
+                    } catch (Exception e) {
+                        logger.debug("No se pudo detectar sensor desde el nombre del archivo Excel: {}", e.getMessage());
                     }
                     logger.info("Sensores detectados desde Excel: {}", sensoresDetectados);
                     // guardar datos
@@ -133,27 +178,14 @@ public class LogtagDocumentoServicio {
         if (datosProcesados > 0) {
             mensajeVerificacion += " | Datos procesados: " + datosProcesados;
         }
-        
-        // Crear entidad
-        LogtagDocumento documento = new LogtagDocumento();
-        documento.setNombreArchivo(archivo.getOriginalFilename());
-        documento.setTipoDocumento(obtenerTipoDesdeNombre(archivo.getOriginalFilename()));
+
+        // Actualizar documento con datos finales
         documento.setCategoria(categoriaFinal);
         documento.setContenidoTexto(contenidoTexto);
-        documento.setTamanioBytes(archivo.getSize());
-        documento.setFechaSubida(LocalDateTime.now());
-        documento.setDescripcion(descripcion);
-        documento.setSubidoPor(subidoPor);
-        documento.setProcesado(false);
         documento.setNotas(mensajeVerificacion);
         documento.setSensoresDetectados(sensoresDetectados.isEmpty() ? null : String.join(",", sensoresDetectados));
-        
-        // Asociar ensayo si se proporcionó
-        if (ensayoId != null) {
-            Optional<Ensayo> ensayo = ensayoServicio.obtenerEnsayo(ensayoId);
-            ensayo.ifPresent(documento::setEnsayo);
-        }
-        
+        documento.setProcesado(true);
+
         return repositorio.save(documento);
     }
     
@@ -193,6 +225,30 @@ public class LogtagDocumentoServicio {
         
         return sensores;
     }
+
+    /**
+     * Detecta un sensor dentro del nombre del archivo (p. ej. "sensor 1", "t2", "T3").
+     */
+    private String detectarSensorDesdeNombreArchivo(String nombre) {
+        if (nombre == null) return null;
+        String lower = nombre.toLowerCase();
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?i)(t\\d{1,2}|sensor[_\\s]?\\d+|s\\d{1,2})");
+        java.util.regex.Matcher matcher = pattern.matcher(lower);
+        if (matcher.find()) {
+            String raw = matcher.group();
+            // Normalizar: sensor 1 -> sensor_1, t2 -> sensor_2
+            raw = raw.replaceAll("\\s+", "_");
+            if (raw.matches("(?i)t\\d+|s\\d+")) {
+                // extraer número y formatear
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(raw);
+                if (m.find()) {
+                    return "sensor_" + m.group(1);
+                }
+            }
+            return raw;
+        }
+        return null;
+    }
     
     /**
      * Obtener tipo de documento desde el nombre
@@ -211,6 +267,14 @@ public class LogtagDocumentoServicio {
     
     public List<LogtagDocumento> listarTodos() {
         return repositorio.findAll();
+    }
+
+    /**
+     * Obtener datos temporales asociados a un documento (buscando por marcador en campo 'fuente')
+     */
+    public List<com.sivco.gestion_archivos.modelos.DatoEnsayoTemporal> obtenerDatosPorDocumento(Long ensayoId, Long documentoId) {
+        String marcador = "DOC:" + documentoId;
+        return cargaDatosServicio.obtenerDatosPorEnsayoYFuente(ensayoId, marcador);
     }
     
     public Optional<LogtagDocumento> buscarPorId(Long id) {

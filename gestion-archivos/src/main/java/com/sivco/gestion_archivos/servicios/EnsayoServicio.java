@@ -155,6 +155,39 @@ public class EnsayoServicio {
         }
     }
 
+    /**
+     * Desplaza todos los timestamps de la serie temporal del ensayo por un offset en segundos.
+     * Actualiza tanto la lista en memoria como persiste los cambios en la base de datos.
+     * @param ensayoId id del ensayo
+     * @param offsetSeconds segundos a desplazar (puede ser negativo)
+     * @return cantidad de puntos afectados
+     */
+    public int desplazarSerieTemporal(Long ensayoId, long offsetSeconds) {
+        List<DatoEnsayoTemporal> datos = obtenerDatosTemporales(ensayoId);
+        if (datos == null || datos.isEmpty()) return 0;
+
+        synchronized (datos) {
+            for (DatoEnsayoTemporal d : datos) {
+                try {
+                    if (d.getTimestamp() != null) {
+                        d.setTimestamp(d.getTimestamp().plusSeconds(offsetSeconds));
+                    }
+                } catch (Exception ex) {
+                    System.err.println("Error desplazando timestamp para dato id=" + d.getId() + ": " + ex.getMessage());
+                }
+            }
+        }
+
+        try {
+            // Persistir cambios en la BD; saveAllAndFlush asegura escritura inmediata
+            datoTemporalRepositorio.saveAllAndFlush(datos);
+        } catch (Exception e) {
+            System.err.println("Advertencia: no se pudieron persistir todos los cambios de timestamps: " + e.getMessage());
+        }
+
+        return datos.size();
+    }
+
     public void guardarDatosTemporalesBatch(Long ensayoId, List<DatoEnsayoTemporal> datos) {
         if (datos == null || datos.isEmpty()) {
             return;

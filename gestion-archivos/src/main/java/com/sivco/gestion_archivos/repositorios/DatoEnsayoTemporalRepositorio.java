@@ -20,6 +20,11 @@ public interface DatoEnsayoTemporalRepositorio extends JpaRepository<DatoEnsayoT
     List<DatoEnsayoTemporal> findByEnsayoIdAndSensor(Long ensayoId, String sensor);
     
     /**
+     * Busca datos temporales por ensayo y fragmento de fuente (por ejemplo, marcador de documento)
+     */
+    List<DatoEnsayoTemporal> findByEnsayoIdAndFuenteContaining(Long ensayoId, String fuenteFragment);
+    
+    /**
      * Elimina todos los datos temporales de un ensayo
      */
     void deleteByEnsayoId(Long ensayoId);

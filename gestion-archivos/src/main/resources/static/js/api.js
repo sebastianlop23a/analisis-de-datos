@@ -727,7 +727,7 @@ async function obtenerSensoresProximosCalibracion() {
 /**
  * Subir documento logtag con categoría
  */
-async function subirLogtag(archivo, ensayoId, categoria, descripcion = '', subidoPor = 'Sistema') {
+async function subirLogtag(archivo, ensayoId, categoria, descripcion = '', subidoPor = 'Sistema', lote = '') {
     try {
         const formData = new FormData();
         formData.append('archivo', archivo);
@@ -735,6 +735,7 @@ async function subirLogtag(archivo, ensayoId, categoria, descripcion = '', subid
         formData.append('categoria', categoria);
         if (descripcion) formData.append('descripcion', descripcion);
         if (subidoPor) formData.append('subidoPor', subidoPor);
+        if (lote) formData.append('lote', lote);
 
         const response = await fetch(`${API_CONFIG.BASE_URL}/logtag`, {
             method: 'POST',
@@ -784,6 +785,18 @@ async function obtenerLogtagsPorEnsayo(ensayoId) {
         return await api.get(`/logtag/ensayo/${ensayoId}`);
     } catch (error) {
         console.error('Error obteniendo logtags del ensayo:', error);
+        return [];
+    }
+}
+
+/**
+ * Obtener datos temporales asociados a un documento Logtag
+ */
+async function obtenerDatosPorDocumento(documentoId) {
+    try {
+        return await api.get(`/logtag/${documentoId}/datos`);
+    } catch (error) {
+        console.error('Error obteniendo datos por documento:', error);
         return [];
     }
 }
