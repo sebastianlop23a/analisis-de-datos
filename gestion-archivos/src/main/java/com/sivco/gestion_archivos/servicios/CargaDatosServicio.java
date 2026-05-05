@@ -166,24 +166,68 @@ public class CargaDatosServicio {
         DataFormatter formatter = new DataFormatter();
 
         byte[] bytes = archivo.getBytes();
+        logger.debug("Tamaño del archivo Excel: {} bytes", bytes.length);
 
         Workbook workbook = null;
         try {
             workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes));
+            logger.debug("Workbook creado exitosamente con WorkbookFactory");
         } catch (org.apache.poi.util.RecordFormatException rfe) {
             logger.warn("RecordFormatException al crear Workbook, intentando fallback HSSF: {}", rfe.getMessage());
             try {
                 if (looksLikePOIFS(bytes)) {
+                    logger.debug("Detectado formato POIFS (OLE2), intentando HSSFWorkbook");
                     POIFSFileSystem fs = new POIFSFileSystem(new ByteArrayInputStream(bytes));
                     workbook = new HSSFWorkbook(fs);
+                    logger.debug("HSSFWorkbook creado exitosamente");
                 } else {
                     throw rfe;
                 }
+            } catch (org.apache.poi.util.RecordFormatException recordEx) {
+                logger.error("El archivo Excel tiene formato OLE2 válido pero está corrupto internamente: {}", recordEx.getMessage());
+                // Intentar recuperación agresiva: leer lo que se pueda del archivo corrupto
+                logger.info("Intentando recuperación de datos de archivo corrupto...");
+                try {
+                    return intentarRecuperacionDatosExcelCorrupto(bytes, archivo.getOriginalFilename(), ensayoId);
+                } catch (Exception recoveryEx) {
+                    logger.error("Recuperación también falló: {}", recoveryEx.getMessage());
+                    throw new IOException("El archivo Excel '" + archivo.getOriginalFilename() + "' tiene un formato válido pero está corrupto o incompleto. " +
+                        "Se intentó recuperación de datos pero falló. Verifique que el archivo no esté dañado o truncado. " +
+                        "Detalle del error: " + recordEx.getMessage(), recordEx);
+                }
             } catch (Exception ex) {
-                logger.error("Fallback HSSF fallido: {}", ex.getMessage(), ex);
+                logger.error("Fallback HSSF fallido: {} - Tipo: {}", ex.getMessage(), ex.getClass().getSimpleName(), ex);
                 throw new IOException("El archivo Excel está corrupto o en un formato no soportado: " + ex.getMessage(), ex);
             }
+        } catch (Exception ex) {
+            logger.warn("Otra excepción al crear Workbook ({}): {}, intentando fallback HSSF agresivo", 
+                ex.getClass().getSimpleName(), ex.getMessage());
+            try {
+                logger.debug("Verificando si el archivo se parece a POIFS...");
+                if (looksLikePOIFS(bytes)) {
+                    logger.debug("Sí, intentando HSSFWorkbook como fallback agresivo");
+                    POIFSFileSystem fs = new POIFSFileSystem(new ByteArrayInputStream(bytes));
+                    workbook = new HSSFWorkbook(fs);
+                    logger.debug("HSSFWorkbook creado exitosamente en fallback agresivo");
+                } else {
+                    logger.debug("No se detectó formato POIFS, re-lanzando excepción original");
+                    throw ex;
+                }
+            } catch (org.apache.poi.util.RecordFormatException recordEx) {
+                logger.error("Fallback HSSF agresivo falló - archivo corrupto: {} - Tipo: {}", recordEx.getMessage(), recordEx.getClass().getSimpleName());
+                throw new IOException("El archivo Excel '" + archivo.getOriginalFilename() + "' está corrupto o incompleto. " +
+                    "El archivo tiene una estructura OLE2 válida pero los datos internos están dañados. " +
+                    "Detalle del error: " + recordEx.getMessage(), recordEx);
+            } catch (Exception fallbackEx) {
+                logger.error("Fallback HSSF agresivo también falló: {} - Tipo: {}", fallbackEx.getMessage(), fallbackEx.getClass().getSimpleName(), fallbackEx);
+                throw new IOException("El archivo Excel está corrupto o en un formato no soportado: " + fallbackEx.getMessage(), fallbackEx);
+            }
         }
+
+        if (workbook == null) {
+            throw new IOException("No se pudo crear un Workbook válido del archivo Excel");
+        }
+
 
         try {
             Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
@@ -1883,17 +1927,281 @@ public class CargaDatosServicio {
     }
 
     /**
-     * Heurística simple para detectar archivos OLE2 (antiguos .xls) verificando
+     * Heurística robusta para detectar archivos OLE2 (antiguos .xls) verificando
      * los primeros 8 bytes del encabezado: D0 CF 11 E0 A1 B1 1A E1
+     * Retorna true si el archivo tiene la firma OLE2, incluso si está parcialmente corrupto
      */
     private boolean looksLikePOIFS(byte[] bytes) {
-        if (bytes == null || bytes.length < 8) return false;
-        int[] sig = {0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1};
-        for (int i = 0; i < 8; i++) {
-            int b = bytes[i] & 0xFF;
-            if (b != sig[i]) return false;
+        if (bytes == null || bytes.length < 8) {
+            logger.debug("Archivo demasiado pequeño para ser POIFS: {} bytes", bytes != null ? bytes.length : 0);
+            return false;
         }
-        return true;
+        try {
+            int[] sig = {0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1};
+            for (int i = 0; i < 8; i++) {
+                int b = bytes[i] & 0xFF;
+                if (b != sig[i]) {
+                    logger.debug("Archivo no tiene firma POIFS. Byte {}: {}, esperado: {}", i, b, sig[i]);
+                    return false;
+                }
+            }
+            logger.debug("Archivo tiene firma POIFS válida");
+            return true;
+        } catch (Exception e) {
+            logger.debug("Error verificando firma POIFS: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Intenta recuperar datos de un archivo Excel corrupto usando estrategias más tolerantes.
+     * Este método se llama cuando el archivo tiene firma OLE2 válida pero falla al leer los registros.
+     */
+    private List<DatoEnsayoTemporal> intentarRecuperacionDatosExcelCorrupto(byte[] bytes, String nombreArchivo, Long ensayoId) throws IOException {
+        logger.info("Intentando recuperación de datos de Excel corrupto: {}", nombreArchivo);
+
+        List<DatoEnsayoTemporal> datosRecuperados = new ArrayList<>();
+        DataFormatter formatter = new DataFormatter();
+
+        try {
+            // Estrategia 1: Intentar leer con opciones más tolerantes
+            logger.debug("Estrategia 1: Leyendo con opciones tolerantes a errores");
+            POIFSFileSystem fs = new POIFSFileSystem(new ByteArrayInputStream(bytes));
+
+            // Intentar crear workbook con opciones de recuperación
+            org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = null;
+            try {
+                workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook(fs, true); // true = preserve nodes
+                logger.debug("Workbook creado exitosamente con preservación de nodos");
+            } catch (Exception e) {
+                logger.warn("Falló preservación de nodos, intentando sin ella: {}", e.getMessage());
+                workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook(fs);
+            }
+
+            if (workbook != null) {
+                logger.info("Workbook recuperado exitosamente, procesando hojas...");
+
+                // Procesar todas las hojas disponibles
+                for (org.apache.poi.ss.usermodel.Sheet sheet : workbook) {
+                    logger.debug("Procesando hoja: {}", sheet.getSheetName());
+
+                    try {
+                        List<DatoEnsayoTemporal> datosHoja = procesarHojaExcel(sheet, formatter, ensayoId, nombreArchivo);
+                        if (!datosHoja.isEmpty()) {
+                            datosRecuperados.addAll(datosHoja);
+                            logger.info("Recuperados {} datos de la hoja {}", datosHoja.size(), sheet.getSheetName());
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Error procesando hoja {}: {}", sheet.getSheetName(), e.getMessage());
+                        // Continuar con la siguiente hoja
+                    }
+                }
+
+                workbook.close();
+            }
+
+            fs.close();
+
+        } catch (Exception e) {
+            logger.error("Todas las estrategias de recuperación fallaron: {}", e.getMessage());
+            throw new IOException("No se pudieron recuperar datos del archivo Excel corrupto '" + nombreArchivo +
+                "'. El archivo tiene una estructura OLE2 válida pero los datos internos están dañados. " +
+                "Detalle del error: " + e.getMessage(), e);
+        }
+
+        logger.info("Recuperación completada: {} datos recuperados de archivo corrupto", datosRecuperados.size());
+        return datosRecuperados;
+    }
+
+    /**
+     * Procesa una hoja Excel individual intentando extraer datos de manera robusta
+     */
+    private List<DatoEnsayoTemporal> procesarHojaExcel(org.apache.poi.ss.usermodel.Sheet sheet, DataFormatter formatter,
+                                                      Long ensayoId, String nombreArchivo) throws IOException {
+        List<DatoEnsayoTemporal> datos = new ArrayList<>();
+
+        if (sheet == null) {
+            return datos;
+        }
+
+        // Obtener el ensayo para validaciones
+        Optional<Ensayo> ensayoOpt = ensayoServicio.obtenerEnsayo(ensayoId);
+        Maquina maquina = ensayoOpt.isPresent() ? ensayoOpt.get().getMaquina() : null;
+
+        int filaInicio = detectarFilaInicioDatos(sheet);
+        logger.debug("Fila de inicio de datos detectada: {}", filaInicio);
+
+        for (int i = filaInicio; i <= sheet.getLastRowNum(); i++) {
+            org.apache.poi.ss.usermodel.Row row = sheet.getRow(i);
+            if (row == null) continue;
+
+            try {
+                DatoEnsayoTemporal dato = extraerDatoDeFila(row, formatter, ensayoId, maquina, nombreArchivo, i);
+                if (dato != null) {
+                    datos.add(dato);
+                }
+            } catch (Exception e) {
+                logger.debug("Error procesando fila {}: {}", i, e.getMessage());
+                // Continuar con la siguiente fila
+            }
+        }
+
+        return datos;
+    }
+
+    /**
+     * Detecta dónde comienzan los datos reales en la hoja (después de encabezados)
+     */
+    private int detectarFilaInicioDatos(org.apache.poi.ss.usermodel.Sheet sheet) {
+        // Buscar la primera fila que tenga datos numéricos o fechas
+        for (int i = 0; i < Math.min(20, sheet.getLastRowNum() + 1); i++) {
+            org.apache.poi.ss.usermodel.Row row = sheet.getRow(i);
+            if (row == null) continue;
+
+            for (org.apache.poi.ss.usermodel.Cell cell : row) {
+                if (cell != null) {
+                    org.apache.poi.ss.usermodel.CellType cellType = cell.getCellType();
+                    if (cellType == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
+                        // Verificar si es una fecha o un número
+                        if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                            return i;
+                        } else {
+                            double value = cell.getNumericCellValue();
+                            // Si es un número razonable (temperatura), considerar que son datos
+                            if (value >= -100 && value <= 500) {
+                                return i;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return 0; // Por defecto, comenzar desde la primera fila
+    }
+
+    /**
+     * Extrae un dato de una fila Excel de manera robusta
+     */
+    private DatoEnsayoTemporal extraerDatoDeFila(org.apache.poi.ss.usermodel.Row row, DataFormatter formatter,
+                                                Long ensayoId, Maquina maquina, String nombreArchivo, int numeroFila) {
+        if (row == null || row.getLastCellNum() < 2) {
+            return null;
+        }
+
+        try {
+            // Intentar extraer fecha/hora, valor y sensor
+            String fechaHoraStr = null;
+            Double valor = null;
+            String sensor = null;
+
+            // Buscar celdas con contenido
+            for (int col = 0; col < row.getLastCellNum(); col++) {
+                org.apache.poi.ss.usermodel.Cell cell = row.getCell(col);
+                if (cell == null) continue;
+
+                String cellValue = formatter.formatCellValue(cell).trim();
+                if (cellValue.isEmpty()) continue;
+
+                org.apache.poi.ss.usermodel.CellType cellType = cell.getCellType();
+
+                if (cellType == org.apache.poi.ss.usermodel.CellType.NUMERIC && org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                    // Es una fecha
+                    if (fechaHoraStr == null) {
+                        fechaHoraStr = cellValue;
+                    }
+                } else if (cellType == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
+                    // Es un número - podría ser valor o parte de fecha/hora
+                    double numericValue = cell.getNumericCellValue();
+                    if (valor == null && numericValue >= -100 && numericValue <= 500) {
+                        valor = numericValue;
+                    }
+                } else if (cellType == org.apache.poi.ss.usermodel.CellType.STRING) {
+                    // Es texto - podría ser sensor o fecha/hora
+                    if (cellValue.matches(".*\\d{1,2}:\\d{2}.*") || cellValue.matches(".*\\d{4}-\\d{2}-\\d{2}.*")) {
+                        // Parece fecha/hora
+                        if (fechaHoraStr == null) {
+                            fechaHoraStr = cellValue;
+                        }
+                    } else if (cellValue.toLowerCase().matches(".*sensor.*\\d+.*") || cellValue.matches(".*t\\d+.*")) {
+                        // Parece nombre de sensor
+                        if (sensor == null) {
+                            sensor = cellValue;
+                        }
+                    }
+                }
+            }
+
+            // Si tenemos al menos fecha/hora y valor, crear el dato
+            if (fechaHoraStr != null && valor != null) {
+                LocalDateTime timestamp = parsearFechaHora(fechaHoraStr);
+                if (timestamp != null) {
+                    DatoEnsayoTemporal dato = new DatoEnsayoTemporal();
+                    dato.setEnsayoId(ensayoId);
+                    dato.setTimestamp(timestamp);
+                    dato.setValor(valor);
+                    dato.setSensor(sensor != null ? sensor : "sensor_desconocido");
+                    dato.setFuente("EXCEL_RECUPERADO:" + nombreArchivo + "|fila_" + numeroFila);
+                    dato.setNumeroSecuencia(numeroFila);
+
+                    // Validar contra límites de máquina si están disponibles
+                    if (maquina != null) {
+                        boolean anormal = (valor < maquina.getLimiteInferior() || valor > maquina.getLimiteSuperior());
+                        dato.setAnormal(anormal);
+                    }
+
+                    return dato;
+                }
+            }
+
+        } catch (Exception e) {
+            logger.debug("Error extrayendo dato de fila {}: {}", numeroFila, e.getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Parsea una cadena de fecha/hora de manera flexible
+     */
+    private LocalDateTime parsearFechaHora(String fechaHoraStr) {
+        if (fechaHoraStr == null || fechaHoraStr.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            // Intentar varios formatos comunes
+            DateTimeFormatter[] formatters = {
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),
+                DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm:ss"),
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
+                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),
+                DateTimeFormatter.ofPattern("HH:mm:ss"),
+                DateTimeFormatter.ofPattern("HH:mm")
+            };
+
+            for (DateTimeFormatter formatter : formatters) {
+                try {
+                    if (fechaHoraStr.contains(" ")) {
+                        return LocalDateTime.parse(fechaHoraStr, formatter);
+                    } else if (fechaHoraStr.contains(":")) {
+                        // Solo hora, agregar fecha actual
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime timeOnly = LocalDateTime.parse(fechaHoraStr, formatter);
+                        return LocalDateTime.of(now.toLocalDate(), timeOnly.toLocalTime());
+                    }
+                } catch (Exception e) {
+                    // Continuar con el siguiente formato
+                }
+            }
+
+            // Último intento: usar DateTimeFormatter.ISO_LOCAL_DATE_TIME
+            return LocalDateTime.parse(fechaHoraStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        } catch (Exception e) {
+            logger.debug("No se pudo parsear fecha/hora: {}", fechaHoraStr);
+            return null;
+        }
     }
 
 }

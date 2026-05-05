@@ -88,7 +88,7 @@ public class LogtagDocumentoServicio {
                 sensoresDetectados = detectarSensoresEnTexto(contenidoTexto);
                 // Intentar detectar sensor también desde el nombre del archivo (ej: "sensor 1.pdf")
                 try {
-                    String sensorFromName = detectarSensorDesdeNombreArchivo(archivo.getOriginalFilename());
+                    String sensorFromName = detectarSensorDesdeNombreArchivoRobusto(archivo.getOriginalFilename());
                     if (sensorFromName != null && !sensorFromName.isEmpty()) {
                         sensoresDetectados.add(sensorFromName);
                         logger.info("Sensor detectado desde nombre de archivo: {}", sensorFromName);
@@ -139,9 +139,9 @@ public class LogtagDocumentoServicio {
                         // Marcar fuente con documento
                         d.setFuente("DOC:" + documento.getId() + "|" + documento.getNombreArchivo());
                     }
-                    // Intentar detectar sensor también desde el nombre del archivo (ej: "sensor 1.xlsx")
+                    // Intentar detectar sensor también desde el nombre del archivo (ej: "sensor  1.xlsx", "sensor 2.xls")
                     try {
-                        String sensorFromName = detectarSensorDesdeNombreArchivo(archivo.getOriginalFilename());
+                        String sensorFromName = detectarSensorDesdeNombreArchivoRobusto(archivo.getOriginalFilename());
                         if (sensorFromName != null && !sensorFromName.isEmpty()) {
                             sensoresDetectados.add(sensorFromName);
                             logger.info("Sensor detectado desde nombre de archivo (Excel): {}", sensorFromName);
@@ -227,19 +227,27 @@ public class LogtagDocumentoServicio {
     }
 
     /**
-     * Detecta un sensor dentro del nombre del archivo (p. ej. "sensor 1", "t2", "T3").
+     * Detecta un sensor dentro del nombre del archivo (p. ej. "sensor  1", "sensor 2", "t2", "T3").
+     * Maneja múltiples espacios y variaciones de formato.
      */
-    private String detectarSensorDesdeNombreArchivo(String nombre) {
+    private String detectarSensorDesdeNombreArchivoRobusto(String nombre) {
         if (nombre == null) return null;
         String lower = nombre.toLowerCase();
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?i)(t\\d{1,2}|sensor[_\\s]?\\d+|s\\d{1,2})");
+        
+        // Primero intentar detectar "sensor" seguido de espacios/guiones y números
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?i)(sensor[\\s\\-_]*\\d+|t[\\s\\-_]*\\d{1,2}|s[\\s\\-_]*\\d{1,2})");
         java.util.regex.Matcher matcher = pattern.matcher(lower);
         if (matcher.find()) {
             String raw = matcher.group();
-            // Normalizar: sensor 1 -> sensor_1, t2 -> sensor_2
-            raw = raw.replaceAll("\\s+", "_");
-            if (raw.matches("(?i)t\\d+|s\\d+")) {
-                // extraer número y formatear
+            // Normalizar: reemplazar espacios/guiones/guiones bajos con un único guión bajo
+            raw = raw.replaceAll("[\\s\\-_]+", "_");
+            
+            // Si es formato "sensor_X", devolverlo
+            if (raw.matches("(?i)sensor_\\d+")) {
+                return raw;
+            }
+            // Si es formato "t_X" o "s_X", convertir a "sensor_X"
+            else if (raw.matches("(?i)[ts]_\\d+")) {
                 java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(raw);
                 if (m.find()) {
                     return "sensor_" + m.group(1);
@@ -249,6 +257,7 @@ public class LogtagDocumentoServicio {
         }
         return null;
     }
+
     
     /**
      * Obtener tipo de documento desde el nombre
