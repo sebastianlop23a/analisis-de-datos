@@ -1587,8 +1587,8 @@ function crearGraficasIndividuales(datos) {
                     </h4>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <div class="chart-filter">
-                            <input type="time" id="filtroInicioSensor${index}" class="filter-time" placeholder="Inicio">
-                            <input type="time" id="filtroFinSensor${index}" class="filter-time" placeholder="Fin">
+                            <input type="datetime-local" id="filtroInicioSensor${index}" class="filter-time" placeholder="Inicio">
+                            <input type="datetime-local" id="filtroFinSensor${index}" class="filter-time" placeholder="Fin">
                             <button onclick="filtrarGraficaSensor('${sensor}', ${index})" class="btn-filter">Filtrar</button>
                             <button onclick="limpiarFiltroSensor('${sensor}', ${index})" class="btn-filter" style="background: #e74c3c;">✕</button>
                         </div>
@@ -3497,16 +3497,20 @@ function aplicarFiltroHora() {
     const sensorSeleccionado = sensorSelect.value;
     
     if (!horaInicioStr || !horaFinStr) {
-        showToast('Por favor selecciona ambas horas', 'warning');
+        showToast('Por favor selecciona fecha y hora de inicio y fin', 'warning');
         return;
     }
     
-    // Convertir horas a minutos desde medianoche para comparación
-    const minutosInicio = convertirHoraAMinutos(horaInicioStr);
-    const minutosFin = convertirHoraAMinutos(horaFinStr);
+    const fechaInicio = parseDateTimeLocal(horaInicioStr);
+    const fechaFin = parseDateTimeLocal(horaFinStr);
     
-    if (minutosInicio >= minutosFin) {
-        showToast('La hora de inicio debe ser anterior a la hora de fin', 'warning');
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
+        return;
+    }
+    
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
         return;
     }
     
@@ -3515,27 +3519,15 @@ function aplicarFiltroHora() {
         return;
     }
     
-    // Filtrar datos por rango de hora y sensor
     const datosFiltrados = datosAnalisisOriginales.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
-        const minutosDato = fechaDato.getHours() * 60 + fechaDato.getMinutes();
-        
-        // Filtro de hora
-        const cumpleHora = minutosDato >= minutosInicio && minutosDato <= minutosFin;
-        
-        // Filtro de sensor (si se seleccionó uno específico)
+        const cumpleHora = fechaDato >= fechaInicio && fechaDato <= fechaFin;
         const cumpleSensor = !sensorSeleccionado || dato.sensor === sensorSeleccionado;
-        
         return cumpleHora && cumpleSensor;
     });
     
-    // Actualizar tabla con datos filtrados
     llenarTablaDatos(datosFiltrados);
-    
-    // Almacenar datos filtrados para usar en gráficas
     datosFiltradosActuales = datosFiltrados;
-    
-    // Actualizar gráficas con datos filtrados
     actualizarGraficasConFiltro();
     actualizarFiltroActivoTexto(horaInicioStr, horaFinStr, sensorSeleccionado);
     
@@ -3578,6 +3570,20 @@ function limpiarFiltroHora() {
     showToast('Filtro limpiado - mostrando todos los datos', 'info');
 }
 
+// Función auxiliar para convertir valor datetime-local a Date local
+function parseDateTimeLocal(dateTimeLocalStr) {
+    if (!dateTimeLocalStr) return null;
+    const fecha = new Date(dateTimeLocalStr);
+    if (!isNaN(fecha.getTime())) {
+        return fecha;
+    }
+    const [horas, minutos] = dateTimeLocalStr.split(':').map(Number);
+    if (!Number.isFinite(horas) || !Number.isFinite(minutos)) return null;
+    const hoy = new Date();
+    hoy.setHours(horas, minutos, 0, 0);
+    return hoy;
+}
+
 // Función auxiliar para convertir hora HH:MM a minutos desde medianoche
 function convertirHoraAMinutos(horaStr) {
     const [horas, minutos] = horaStr.split(':').map(Number);
@@ -3609,15 +3615,20 @@ function filtrarGraficaSensor(sensor, index) {
     const horaFin = finInput.value;
     
     if (!horaInicio || !horaFin) {
-        showToast('Selecciona ambas horas para filtrar', 'warning');
+        showToast('Selecciona fecha y hora de inicio y fin para filtrar', 'warning');
         return;
     }
     
-    const minutosInicio = convertirHoraAMinutos(horaInicio);
-    const minutosFin = convertirHoraAMinutos(horaFin);
+    const fechaInicio = parseDateTimeLocal(horaInicio);
+    const fechaFin = parseDateTimeLocal(horaFin);
     
-    if (minutosInicio >= minutosFin) {
-        showToast('La hora de inicio debe ser anterior a la hora de fin', 'warning');
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
+        return;
+    }
+    
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
         return;
     }
     
@@ -3698,26 +3709,28 @@ function filtrarGraficaDistribucion() {
     const horaFinStr = horaFinInput.value;
     
     if (!horaInicioStr || !horaFinStr) {
-        showToast('Por favor selecciona ambas horas', 'warning');
+        showToast('Por favor selecciona fecha y hora de inicio y fin', 'warning');
         return;
     }
     
-    const minutosInicio = convertirHoraAMinutos(horaInicioStr);
-    const minutosFin = convertirHoraAMinutos(horaFinStr);
+    const fechaInicio = parseDateTimeLocal(horaInicioStr);
+    const fechaFin = parseDateTimeLocal(horaFinStr);
     
-    if (minutosInicio >= minutosFin) {
-        showToast('La hora de inicio debe ser anterior a la hora de fin', 'warning');
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
         return;
     }
     
-    // Filtrar datos para esta gráfica
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
+        return;
+    }
+    
     const datosFiltrados = datosAnalisisOriginales.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
-        const minutosDato = fechaDato.getHours() * 60 + fechaDato.getMinutes();
-        return minutosDato >= minutosInicio && minutosDato <= minutosFin;
+        return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
     
-    // Guardar filtro y actualizar gráfica
     filtrosGraficas.distribucion = { inicio: horaInicioStr, fin: horaFinStr };
     actualizarGraficaIndividual('distribucion', datosFiltrados);
     showToast(`Gráfica de distribución filtrada: ${datosFiltrados.length} datos`, 'info');
@@ -3743,22 +3756,26 @@ function filtrarGraficaAnormales() {
     const horaFinStr = horaFinInput.value;
     
     if (!horaInicioStr || !horaFinStr) {
-        showToast('Por favor selecciona ambas horas', 'warning');
+        showToast('Por favor selecciona fecha y hora de inicio y fin', 'warning');
         return;
     }
     
-    const minutosInicio = convertirHoraAMinutos(horaInicioStr);
-    const minutosFin = convertirHoraAMinutos(horaFinStr);
+    const fechaInicio = parseDateTimeLocal(horaInicioStr);
+    const fechaFin = parseDateTimeLocal(horaFinStr);
     
-    if (minutosInicio >= minutosFin) {
-        showToast('La hora de inicio debe ser anterior a la hora de fin', 'warning');
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
+        return;
+    }
+    
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
         return;
     }
     
     const datosFiltrados = datosAnalisisOriginales.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
-        const minutosDato = fechaDato.getHours() * 60 + fechaDato.getMinutes();
-        return minutosDato >= minutosInicio && minutosDato <= minutosFin;
+        return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
     
     filtrosGraficas.anormales = { inicio: horaInicioStr, fin: horaFinStr };
@@ -4103,22 +4120,26 @@ function filtrarGraficaBoxplot() {
     const horaFinStr = horaFinInput.value;
     
     if (!horaInicioStr || !horaFinStr) {
-        showToast('Por favor selecciona ambas horas', 'warning');
+        showToast('Por favor selecciona fecha y hora de inicio y fin', 'warning');
         return;
     }
     
-    const minutosInicio = convertirHoraAMinutos(horaInicioStr);
-    const minutosFin = convertirHoraAMinutos(horaFinStr);
+    const fechaInicio = parseDateTimeLocal(horaInicioStr);
+    const fechaFin = parseDateTimeLocal(horaFinStr);
     
-    if (minutosInicio >= minutosFin) {
-        showToast('La hora de inicio debe ser anterior a la hora de fin', 'warning');
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
+        return;
+    }
+    
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
         return;
     }
     
     const datosFiltrados = datosAnalisisOriginales.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
-        const minutosDato = fechaDato.getHours() * 60 + fechaDato.getMinutes();
-        return minutosDato >= minutosInicio && minutosDato <= minutosFin;
+        return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
     
     filtrosGraficas.boxplot = { inicio: horaInicioStr, fin: horaFinStr };
@@ -4146,22 +4167,26 @@ function filtrarGraficaCuartiles() {
     const horaFinStr = horaFinInput.value;
     
     if (!horaInicioStr || !horaFinStr) {
-        showToast('Por favor selecciona ambas horas', 'warning');
+        showToast('Por favor selecciona fecha y hora de inicio y fin', 'warning');
         return;
     }
     
-    const minutosInicio = convertirHoraAMinutos(horaInicioStr);
-    const minutosFin = convertirHoraAMinutos(horaFinStr);
+    const fechaInicio = parseDateTimeLocal(horaInicioStr);
+    const fechaFin = parseDateTimeLocal(horaFinStr);
     
-    if (minutosInicio >= minutosFin) {
-        showToast('La hora de inicio debe ser anterior a la hora de fin', 'warning');
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
+        return;
+    }
+    
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
         return;
     }
     
     const datosFiltrados = datosAnalisisOriginales.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
-        const minutosDato = fechaDato.getHours() * 60 + fechaDato.getMinutes();
-        return minutosDato >= minutosInicio && minutosDato <= minutosFin;
+        return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
     
     filtrosGraficas.cuartiles = { inicio: horaInicioStr, fin: horaFinStr };
@@ -4189,22 +4214,26 @@ function filtrarGraficaTemporal() {
     const horaFinStr = horaFinInput.value;
     
     if (!horaInicioStr || !horaFinStr) {
-        showToast('Por favor selecciona ambas horas', 'warning');
+        showToast('Por favor selecciona fecha y hora de inicio y fin', 'warning');
         return;
     }
     
-    const minutosInicio = convertirHoraAMinutos(horaInicioStr);
-    const minutosFin = convertirHoraAMinutos(horaFinStr);
+    const fechaInicio = parseDateTimeLocal(horaInicioStr);
+    const fechaFin = parseDateTimeLocal(horaFinStr);
     
-    if (minutosInicio >= minutosFin) {
-        showToast('La hora de inicio debe ser anterior a la hora de fin', 'warning');
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
+        return;
+    }
+    
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
         return;
     }
     
     const datosFiltrados = datosAnalisisOriginales.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
-        const minutosDato = fechaDato.getHours() * 60 + fechaDato.getMinutes();
-        return minutosDato >= minutosInicio && minutosDato <= minutosFin;
+        return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
     
     filtrosGraficas.temporal = { inicio: horaInicioStr, fin: horaFinStr };
@@ -4285,15 +4314,17 @@ function actualizarGraficasConFiltro() {
     console.log(`📊 Gráficas actualizadas con filtros individuales`);
 }
 
-// Función auxiliar para filtrar datos por rango de hora
+// Función auxiliar para filtrar datos por rango de fecha y hora
 function filtrarDatosPorHora(datos, horaInicioStr, horaFinStr) {
-    const minutosInicio = convertirHoraAMinutos(horaInicioStr);
-    const minutosFin = convertirHoraAMinutos(horaFinStr);
+    const fechaInicio = parseDateTimeLocal(horaInicioStr);
+    const fechaFin = parseDateTimeLocal(horaFinStr);
+    if (!fechaInicio || !fechaFin) {
+        return datos;
+    }
     
     return datos.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
-        const minutosDato = fechaDato.getHours() * 60 + fechaDato.getMinutes();
-        return minutosDato >= minutosInicio && minutosDato <= minutosFin;
+        return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
 }
 

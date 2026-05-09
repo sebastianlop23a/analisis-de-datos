@@ -125,6 +125,7 @@
                             <label>Nombre *</label>
                             <input type="text" id="maquinaNombre" placeholder="Ej: Horno A1" required>
                         </div>
+                        
                         <div class="form-group">
                             <label>Tipo *</label>
                             <input type="text" id="maquinaTipo" placeholder="Ej: Horno, Cámara Térmica" required>
@@ -524,77 +525,72 @@
                     <div class="chart-header">
                         <h3>Distribución de Datos</h3>
                         <div class="chart-filter">
-                            <label>Hora:</label>
-                            <input type="time" id="filtroDistribucionInicio" class="filter-time">
-                            <span>a</span>
-                            <input type="time" id="filtroDistribucionFin" class="filter-time">
-                            <button onclick="filtrarGraficaDistribucion()" class="btn-filter">Filtrar</button>
-                            <button onclick="limpiarFiltroDistribucion()" class="btn-clear">Limpiar</button>
+                                <label>Fecha y hora:</label>
+                                <input type="datetime-local" id="filtroDistribucionInicio" class="filter-time">
+                                <span>a</span>
+                                <input type="datetime-local" id="filtroDistribucionFin" class="filter-time">
+                                <button onclick="filtrarGraficaDistribucion()" class="btn-filter">Filtrar</button>
+                                <button onclick="limpiarFiltroDistribucion()" class="btn-clear">Limpiar</button>
+                            </div>
                         </div>
+                        <canvas id="chartDatos"></canvas>
                     </div>
-                    <canvas id="chartDatos"></canvas>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3>Datos Normales vs Anormales</h3>
-                        <div class="chart-filter">
-                            <label>Hora:</label>
-                            <input type="time" id="filtroAnormalesInicio" class="filter-time">
-                            <span>a</span>
-                            <input type="time" id="filtroAnormalesFin" class="filter-time">
-                            <button onclick="filtrarGraficaAnormales()" class="btn-filter">Filtrar</button>
-                            <button onclick="limpiarFiltroAnormales()" class="btn-clear">Limpiar</button>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>Datos Normales vs Anormales</h3>
+                            <div class="chart-filter">
+                                <label>Fecha y hora:</label>
+                                <input type="datetime-local" id="filtroAnormalesInicio" class="filter-time">
+                                <span>a</span>
+                                <input type="datetime-local" id="filtroAnormalesFin" class="filter-time">
+                                <button onclick="filtrarGraficaAnormales()" class="btn-filter">Filtrar</button>
+                                <button onclick="limpiarFiltroAnormales()" class="btn-clear">Limpiar</button>
+                            </div>
                         </div>
+                        <canvas id="chartAnormales"></canvas>
                     </div>
-                    <canvas id="chartAnormales"></canvas>
                 </div>
-            </div>
 
-            <div class="section-row">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3>Boxplot (Caja y Bigotes)</h3>
-                        <div class="chart-filter">
-                            <label>Hora:</label>
-                            <input type="time" id="filtroBoxplotInicio" class="filter-time">
-                            <span>a</span>
-                            <input type="time" id="filtroBoxplotFin" class="filter-time">
-                            <button onclick="filtrarGraficaBoxplot()" class="btn-filter">Filtrar</button>
-                            <button onclick="limpiarFiltroBoxplot()" class="btn-clear">Limpiar</button>
+                <div class="section-row">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>Boxplot (Caja y Bigotes)</h3>
+                            <div class="chart-filter">
+                                <label>Fecha y hora:</label>
+                                <input type="datetime-local" id="filtroBoxplotInicio" class="filter-time">
+                                <span>a</span>
+                                <input type="datetime-local" id="filtroBoxplotFin" class="filter-time">
+                                <button onclick="filtrarGraficaBoxplot()" class="btn-filter">Filtrar</button>
+                                <button onclick="limpiarFiltroBoxplot()" class="btn-clear">Limpiar</button>
+                            </div>
                         </div>
+                        <canvas id="chartBoxplot"></canvas>
                     </div>
-                    <canvas id="chartBoxplot"></canvas>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3>Análisis de Cuartiles</h3>
-                        <div class="chart-filter">
-                            <label>Hora:</label>
-                            <input type="time" id="filtroCuartilesInicio" class="filter-time">
-                            <span>a</span>
-                            <input type="time" id="filtroCuartilesFin" class="filter-time">
-                            <button onclick="filtrarGraficaCuartiles()" class="btn-filter">Filtrar</button>
-                            <button onclick="limpiarFiltroCuartiles()" class="btn-clear">Limpiar</button>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>Análisis de Cuartiles</h3>
+                            <div class="chart-filter">
+                                <label>Fecha y hora:</label>
+                                <input type="datetime-local" id="filtroCuartilesInicio" class="filter-time">
+                                <span>a</span>
+                                <input type="datetime-local" id="filtroCuartilesFin" class="filter-time">
+                                <button onclick="filtrarGraficaCuartiles()" class="btn-filter">Filtrar</button>
+                                <button onclick="limpiarFiltroCuartiles()" class="btn-clear">Limpiar</button>
+                            </div>
                         </div>
+                        <canvas id="chartCuartiles"></canvas>
                     </div>
-                    <canvas id="chartCuartiles"></canvas>
                 </div>
-            </div>
 
-            <div class="section-row">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3>Serie Temporal</h3>
-                        <div class="chart-filter">
-                            <label>Hora:</label>
-                            <input type="time" id="filtroTemporalInicio" class="filter-time">
-                            <span>a</span>
-                            <input type="time" id="filtroTemporalFin" class="filter-time">
-                            <button onclick="filtrarGraficaTemporal()" class="btn-filter">Filtrar</button>
-                            <button onclick="limpiarFiltroTemporal()" class="btn-clear">Limpiar</button>
-                        </div>
-                    </div>
-                    <canvas id="chartTemporal"></canvas>
+                <div class="section-row">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>Serie Temporal</h3>
+                            <div class="chart-filter">
+                                <label>Fecha y hora:</label>
+                                <input type="datetime-local" id="filtroTemporalInicio" class="filter-time">
+                                <span>a</span>
+                                <input type="datetime-local" id="filtroTemporalFin" class="filter-time">
                 </div>
             </div>
 
@@ -647,12 +643,12 @@
                     <h4 style="margin: 0 0 15px 0; color: #3498db;">⏰ Filtrar por Rango de Hora y Sensor</h4>
                     <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
                         <div style="display: flex; flex-direction: column; gap: 5px;">
-                            <label for="filtroHoraInicio" style="font-weight: 500; color: #555;">Hora Inicio:</label>
-                            <input type="time" id="filtroHoraInicio" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <label for="filtroHoraInicio" style="font-weight: 500; color: #555;">Fecha y hora inicio:</label>
+                            <input type="datetime-local" id="filtroHoraInicio" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 5px;">
-                            <label for="filtroHoraFin" style="font-weight: 500; color: #555;">Hora Fin:</label>
-                            <input type="time" id="filtroHoraFin" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <label for="filtroHoraFin" style="font-weight: 500; color: #555;">Fecha y hora fin:</label>
+                            <input type="datetime-local" id="filtroHoraFin" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label for="filtroSensor" style="font-weight: 500; color: #555;">Sensor:</label>
