@@ -38,13 +38,25 @@ public class ReporteServicio {
             contenido = generadorReporteFinal.construirHtmlReporte(ensayoId, ensayo);
         }
         
-        // Crear objeto reporte
-        Reporte reporte = new Reporte();
-        reporte.setEnsayo(ensayo);
-        reporte.setFechaGeneracion(LocalDateTime.now());
-        reporte.setTipo(tipo);
-        reporte.setContenido(contenido);
-        reporte.setGeneradoPor(generadoPor);
+        // Buscar si ya existe un reporte del mismo tipo para este ensayo
+        Reporte reporte = reporteRepositorio.findByEnsayoIdAndTipo(ensayoId, tipo)
+            .map(r -> {
+                // Actualizar reporte existente
+                r.setFechaGeneracion(LocalDateTime.now());
+                r.setContenido(contenido);
+                r.setGeneradoPor(generadoPor);
+                return r;
+            })
+            .orElseGet(() -> {
+                // Crear nuevo reporte
+                Reporte nuevoReporte = new Reporte();
+                nuevoReporte.setEnsayo(ensayo);
+                nuevoReporte.setFechaGeneracion(LocalDateTime.now());
+                nuevoReporte.setTipo(tipo);
+                nuevoReporte.setContenido(contenido);
+                nuevoReporte.setGeneradoPor(generadoPor);
+                return nuevoReporte;
+            });
         
         // Guardar reporte en BD
         return reporteRepositorio.save(reporte);

@@ -1,6 +1,7 @@
 package com.sivco.gestion_archivos.repositorios;
 
 import com.sivco.gestion_archivos.modelos.Reporte;
+import com.sivco.gestion_archivos.modelos.TipoReporte;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
@@ -9,4 +10,6 @@ import java.util.Optional;
 public interface ReporteRepositorio extends JpaRepository<Reporte, Long> {
     
     Optional<Reporte> findByEnsayoId(Long ensayoId);
+    
+    Optional<Reporte> findByEnsayoIdAndTipo(Long ensayoId, TipoReporte tipo);
 }

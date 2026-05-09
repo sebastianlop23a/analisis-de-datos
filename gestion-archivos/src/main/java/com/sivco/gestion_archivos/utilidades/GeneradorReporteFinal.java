@@ -393,55 +393,15 @@ public class GeneradorReporteFinal {
     public String construirHtmlReporte(Long ensayoId, Ensayo ensayo) {
         ReporteFinal base = construirReporte(ensayoId, ensayo);
         List<DatoEnsayoTemporal> datos = ensayoServicio.obtenerDatosTemporales(ensayoId);
-        // Obtener correcciones aplicadas históricamente a los datos del ensayo
-        List<Long> calibrationIds = datos.stream()
-            .map(DatoEnsayoTemporal::getAppliedCalibrationId)
-            .filter(id -> id != null)
-            .distinct()
-            .collect(Collectors.toList());
-
-        java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones = new java.util.ArrayList<>();
-        if (!calibrationIds.isEmpty()) {
-            // Try to obtain the legacy repository or service from the Spring context.
-            com.sivco.gestion_archivos.repositorios.CalibrationCorrectionRepositorio repo = null;
-            com.sivco.gestion_archivos.servicios.CalibrationCorrectionServicio calServ = null;
-            try {
-                var ctx = org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext();
-                if (ctx != null) {
-                    try { repo = ctx.getBean(com.sivco.gestion_archivos.repositorios.CalibrationCorrectionRepositorio.class); } catch (Exception ignore) {}
-                    try { calServ = ctx.getBean(com.sivco.gestion_archivos.servicios.CalibrationCorrectionServicio.class); } catch (Exception ignore) {}
-                }
-            } catch (Exception ignore) {
-                // ignore - we'll attempt fallbacks below
-            }
-
-            for (Long cid : calibrationIds) {
-                try {
-                    // First try to treat cid as a legacy CalibrationCorrection id
-                    if (repo != null) {
-                        repo.findById(cid).ifPresent(correcciones::add);
-                        continue;
-                    }
-
-                    // Fallback: try to interpret cid as a sensor id and fetch history from service
-                    if (calServ != null) {
-                        java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> hist = calServ.historyForSensor(cid);
-                        if (hist != null && !hist.isEmpty()) {
-                            correcciones.addAll(hist);
-                        }
-                    }
-                } catch (Exception ex) {
-                    // ignore individual fetch errors
-                }
-            }
-        }
-
+        
+        // Obtener correcciones aplicadas
+        java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones = obtenerCorrecciones(datos);
+        
         // Calcular cuartiles
         List<Double> valoresOrdenados = datos.stream()
             .map(DatoEnsayoTemporal::getValor)
             .sorted()
             .collect(Collectors.toList());
-        
         double q1 = calcularCuartil(valoresOrdenados, 0.25);
         double q2 = calcularCuartil(valoresOrdenados, 0.50);
         double q3 = calcularCuartil(valoresOrdenados, 0.75);
@@ -451,118 +411,259 @@ public class GeneradorReporteFinal {
             .collect(Collectors.groupingBy(d -> d.getSensor() != null ? d.getSensor() : "Sin Sensor"));
 
         StringBuilder html = new StringBuilder();
-        html.append("<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n");
-        html.append("  <meta charset=\"UTF-8\">\n");
-        html.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-        html.append("  <title>Reporte - ").append(base.getNombreEnsayo()).append("</title>\n");
-        html.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js\"></script>\n");
-        html.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.1.0/chartjs-plugin-zoom.min.js\"></script>\n");
-        html.append("  <style>\n");
-        html.append("    * { margin: 0; padding: 0; box-sizing: border-box; }\n");
-        html.append("    body { font-family: Arial, sans-serif; color: #333; }\n");
-        html.append("    .container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; }\n");
-        html.append("    h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding: 10px 0; }\n");
-        html.append("    h2 { color: #34495e; margin-top: 30px; border-left: 4px solid #3498db; padding-left: 10px; }\n");
-        html.append("    h3 { color: #7f8c8d; }\n");
-        html.append("    .info-section { background: #ecf0f1; padding: 15px; border-radius: 5px; margin: 15px 0; }\n");
-        html.append("    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }\n");
-        html.append("    .stat-box { background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 15px; border-radius: 5px; text-align: center; }\n");
-        html.append("    .stat-value { font-size: 20px; font-weight: bold; }\n");
-        html.append("    .stat-label { font-size: 11px; margin-top: 5px; }\n");
-        html.append("    .chart-container { position: relative; width: 100%; height: 350px; margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }\n");
-        html.append("    .chart-zoom-info { background: #d1ecf1; border: 1px solid #0c5460; color: #0c5460; padding: 10px; border-radius: 3px; margin-bottom: 10px; font-size: 12px; }\n");
-        html.append("    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }\n");
-        html.append("    .chart-half { position: relative; width: 100%; height: 300px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }\n");
-        html.append("    .sensor-section { background: #f8f9fa; padding: 20px; margin: 20px 0; border-left: 4px solid #17a2b8; border-radius: 5px; }\n");
-        html.append("    .sensor-title { color: #17a2b8; font-weight: bold; margin-bottom: 15px; }\n");
-        html.append("    table { width: 100%; border-collapse: collapse; margin: 15px 0; }\n");
-        html.append("    th { background: #34495e; color: white; padding: 12px; text-align: left; }\n");
-        html.append("    td { padding: 10px; border-bottom: 1px solid #ddd; }\n");
-        html.append("    tr:nth-child(even) { background: #f9f9f9; }\n");
-        html.append("    .page-break { page-break-after: always; margin: 40px 0; }\n");
-        html.append("  </style>\n");
-        html.append("</head>\n<body>\n<div class=\"container\">\n");
         
-        // Título
-        html.append("  <h1>REPORTE COMPLETO DE ENSAYO</h1>\n");
+        // Construir estructura HTML
+        html.append(generarDocumentoHTML(base, datos, q1, q2, q3, datosPorSensor, correcciones));
         
-        // Información
-        html.append("  <h2>Información del Ensayo</h2>\n");
-        html.append("  <div class=\"info-section\">\n");
-        html.append("    <p><strong>Ensayo:</strong> ").append(base.getNombreEnsayo()).append("</p>\n");
-        html.append("    <p><strong>Máquina:</strong> ").append(base.getNombreMaquina()).append(" (").append(base.getTipoMaquina()).append(")</p>\n");
-        html.append("    <p><strong>Período:</strong> ").append(base.getFechaInicio()).append(" a ").append(base.getFechaFin()).append("</p>\n");
-        html.append("    <p><strong>Responsable:</strong> ").append(base.getResponsable()).append("</p>\n");
-        html.append("  </div>\n");
+        return html.toString();
+    }
+
+    /**
+     * Obtiene las correcciones aplicadas a los datos del ensayo
+     */
+    private java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> obtenerCorrecciones(List<DatoEnsayoTemporal> datos) {
+        List<Long> calibrationIds = datos.stream()
+            .map(DatoEnsayoTemporal::getAppliedCalibrationId)
+            .filter(id -> id != null)
+            .distinct()
+            .collect(Collectors.toList());
+
+        java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones = new java.util.ArrayList<>();
+        if (calibrationIds.isEmpty()) return correcciones;
+
+        try {
+            var ctx = org.springframework.web.context.ContextLoader.getCurrentWebApplicationContext();
+            if (ctx == null) return correcciones;
+            
+            com.sivco.gestion_archivos.repositorios.CalibrationCorrectionRepositorio repo = null;
+            com.sivco.gestion_archivos.servicios.CalibrationCorrectionServicio calServ = null;
+            
+            try { repo = ctx.getBean(com.sivco.gestion_archivos.repositorios.CalibrationCorrectionRepositorio.class); } catch (Exception ignore) {}
+            try { calServ = ctx.getBean(com.sivco.gestion_archivos.servicios.CalibrationCorrectionServicio.class); } catch (Exception ignore) {}
+
+            for (Long cid : calibrationIds) {
+                try {
+                    if (repo != null) {
+                        repo.findById(cid).ifPresent(correcciones::add);
+                    } else if (calServ != null) {
+                        java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> hist = calServ.historyForSensor(cid);
+                        if (hist != null && !hist.isEmpty()) correcciones.addAll(hist);
+                    }
+                } catch (Exception ignore) {}
+            }
+        } catch (Exception ignore) {}
         
-        // Estadísticas con Cuartiles
-        html.append("  <h2>Estadísticas y Cuartiles</h2>\n");
-        html.append("  <div class=\"stats-grid\">\n");
-        html.append("    <div class=\"stat-box\"><div class=\"stat-value\">").append(String.format("%.2f", base.getMinimo())).append("</div><div class=\"stat-label\">Q0 Mín</div></div>\n");
-        html.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #f39c12, #d68910);\"><div class=\"stat-value\">").append(String.format("%.2f", q1)).append("</div><div class=\"stat-label\">Q1 (25%)</div></div>\n");
-        html.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #2ecc71, #27ae60);\"><div class=\"stat-value\">").append(String.format("%.2f", q2)).append("</div><div class=\"stat-label\">Q2 Mediana</div></div>\n");
-        html.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #e74c3c, #c0392b);\"><div class=\"stat-value\">").append(String.format("%.2f", q3)).append("</div><div class=\"stat-label\">Q3 (75%)</div></div>\n");
-        html.append("  </div>\n");
-        html.append("  <div class=\"stats-grid\">\n");
-        html.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #9b59b6, #8e44ad);\"><div class=\"stat-value\">").append(String.format("%.2f", base.getMaximo())).append("</div><div class=\"stat-label\">Q4 Máx</div></div>\n");
-        html.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #3498db, #2980b9);\"><div class=\"stat-value\">").append(String.format("%.2f", base.getMedia())).append("</div><div class=\"stat-label\">Media</div></div>\n");
-        html.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #1abc9c, #16a085);\"><div class=\"stat-value\">").append(String.format("%.2f", base.getDesviacionEstandar())).append("</div><div class=\"stat-label\">Desv. Est.</div></div>\n");
-        html.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #34495e, #2c3e50);\"><div class=\"stat-value\">").append(base.getTotalDatos()).append("</div><div class=\"stat-label\">Registros</div></div>\n");
-        html.append("  </div>\n");
+        return correcciones;
+    }
+
+    /**
+     * Genera el documento HTML completo
+     */
+    private String generarDocumentoHTML(ReporteFinal base, List<DatoEnsayoTemporal> datos, 
+            double q1, double q2, double q3, Map<String, List<DatoEnsayoTemporal>> datosPorSensor,
+            java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones) {
         
-        // Tabla de Estadísticas Detallada
-        html.append("  <h2>Tabla de Estadísticas Detallada</h2>\n");
-        html.append("  <table>\n");
-        html.append("    <tr><th>Métrica</th><th>Valor</th></tr>\n");
-        html.append("    <tr><td>Total de Registros</td><td>").append(base.getTotalDatos()).append("</td></tr>\n");
-        html.append("    <tr><td>Registros Anormales</td><td>").append(base.getDatosAnormales()).append(" (").append(String.format("%.2f%%", base.getPorcentajeAnormales())).append(")</td></tr>\n");
-        html.append("    <tr><td>Media</td><td>").append(String.format("%.4f", base.getMedia())).append("</td></tr>\n");
-        html.append("    <tr><td>Desviación Estándar</td><td>").append(String.format("%.4f", base.getDesviacionEstandar())).append("</td></tr>\n");
-        html.append("    <tr><td>Q1 (25%)</td><td>").append(String.format("%.4f", q1)).append("</td></tr>\n");
-        html.append("    <tr><td>Mediana (Q2)</td><td>").append(String.format("%.4f", q2)).append("</td></tr>\n");
-        html.append("    <tr><td>Q3 (75%)</td><td>").append(String.format("%.4f", q3)).append("</td></tr>\n");
-        html.append("    <tr><td>Valor Mínimo</td><td>").append(String.format("%.4f", base.getMinimo())).append("</td></tr>\n");
-        html.append("    <tr><td>Valor Máximo</td><td>").append(String.format("%.4f", base.getMaximo())).append("</td></tr>\n");
-        html.append("    <tr><td>Rango</td><td>").append(String.format("%.4f", base.getRango())).append("</td></tr>\n");
-        html.append("    <tr><td>IQR (Q3-Q1)</td><td>").append(String.format("%.4f", q3 - q1)).append("</td></tr>\n");
-        html.append("    <tr><td>Límite Inferior</td><td>").append(String.format("%.4f", base.getLimiteInferior())).append("</td></tr>\n");
-        html.append("    <tr><td>Límite Superior</td><td>").append(String.format("%.4f", base.getLimiteSuperior())).append("</td></tr>\n");
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html>\n<html lang=\"es\">\n");
+        html.append(generarHead(base));
+        html.append("<body>\n<div class=\"container\">\n");
         
-        // Factor Histórico (si aplica)
+        // Contenido principal
+        html.append(generarTituloEncabezado());
+        html.append(generarResumenEjecutivo(base));
+        html.append(generarSeccionResumenMetricas(base, q1, q2, q3));
+        html.append(generarSeccionInformacion(base));
+        html.append(generarSeccionEstadisticas(base, q1, q2, q3));
+        html.append(generarTablaEstadisticas(base, q1, q2, q3));
+        html.append(generarSeccionGraficas(base, datos, q1, q2, q3, datosPorSensor));
+        html.append(generarSeccionSensores(datosPorSensor));
+        html.append(generarSeccionCorrecciones(correcciones));
+        html.append(generarFooter());
+        
+        html.append("</div>\n</body>\n</html>\n");
+        return html.toString();
+    }
+
+    private String generarHead(ReporteFinal base) {
+        StringBuilder head = new StringBuilder();
+        head.append("<head>\n");
+        head.append("  <meta charset=\"UTF-8\">\n");
+        head.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+        head.append("  <title>Reporte - ").append(base.getNombreEnsayo()).append("</title>\n");
+        head.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js\"></script>\n");
+        head.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.1.0/chartjs-plugin-zoom.min.js\"></script>\n");
+        head.append(generarCSS());
+        head.append("</head>\n");
+        return head.toString();
+    }
+
+    private String generarCSS() {
+        return "  <style>\n" +
+            "    * { margin: 0; padding: 0; box-sizing: border-box; }\n" +
+            "    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e2e8f0; background: #0b1220; }\n" +
+            "    .container { max-width: 1160px; margin: 24px auto 48px; background: #111827; padding: 30px 34px 40px; border-radius: 20px; border: 1px solid #1f2937; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.45); }\n" +
+            "    h1 { color: #f8fafc; border-bottom: 4px solid #2563eb; padding-bottom: 14px; margin-bottom: 20px; font-size: 34px; letter-spacing: 0.8px; }\n" +
+            "    h2 { color: #f8fafc; margin-top: 34px; border-left: 5px solid #2563eb; padding-left: 14px; font-size: 20px; margin-bottom: 16px; }\n" +
+            "    h3 { color: #cbd5e1; margin-bottom: 12px; }\n" +
+            "    .info-section { background: #111827; padding: 20px; border-radius: 18px; margin: 18px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; border: 1px solid #1f2937; }\n" +
+            "    .info-section p { line-height: 1.75; color: #cbd5e1; font-size: 14px; }\n" +
+            "    .badge { display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }\n" +
+            "    .badge-success { background: #22c55e; color: #0f172a; }\n" +
+            "    .badge-warning { background: #facc15; color: #0f172a; }\n" +
+            "    .summary-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 20px 0 26px; }\n" +
+            "    .summary-card { background: #0f172a; border: 1px solid #1f2937; padding: 18px 20px; border-radius: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }\n" +
+            "    .summary-card h4 { font-size: 13px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }\n" +
+            "    .summary-card p { font-size: 22px; color: #f8fafc; font-weight: 700; margin: 0; }\n" +
+            "    .metric-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 18px 0 26px; }\n" +
+            "    .metric-card { background: #0f172a; border: 1px solid #1f2937; border-radius: 18px; padding: 18px 16px; color: #e2e8f0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }\n" +
+            "    .metric-card strong { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }\n" +
+            "    .metric-card span { display: block; font-size: 28px; font-weight: 700; margin-top: 6px; color: #f8fafc; }\n" +
+            "    .metric-card.emphasis { background: linear-gradient(135deg, #1e3a8a, #0f172a); border-color: #2563eb; }\n" +
+            "    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0; }\n" +
+            "    .stat-box { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 16px; border-radius: 14px; text-align: center; min-height: 100px; display: flex; flex-direction: column; justify-content: center; }\n" +
+            "    .stat-value { font-size: 20px; font-weight: bold; }\n" +
+            "    .stat-label { font-size: 11px; margin-top: 6px; opacity: 0.95; }\n" +
+            "    .chart-container { position: relative; width: 100%; height: 350px; margin: 30px 0; padding: 20px; border: 1px solid #1f2937; border-radius: 18px; background: #0f172a; }\n" +
+            "    .chart-zoom-info { background: #111827; border: 1px solid #1f2937; color: #cbd5e1; padding: 12px; border-radius: 12px; margin-bottom: 12px; font-size: 13px; }\n" +
+            "    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }\n" +
+            "    .chart-half { position: relative; width: 100%; height: 300px; padding: 18px; border: 1px solid #1f2937; border-radius: 18px; background: #111827; }\n" +
+            "    .sensor-section { background: #111827; padding: 20px; margin: 20px 0; border-left: 4px solid #2563eb; border-radius: 18px; }\n" +
+            "    .sensor-title { color: #e2e8f0; font-weight: bold; margin-bottom: 15px; }\n" +
+            "    table { width: 100%; border-collapse: collapse; margin: 18px 0; background: #0f172a; }\n" +
+            "    th { background: #1e293b; color: #e2e8f0; padding: 13px; text-align: left; }\n" +
+            "    td { padding: 11px; border-bottom: 1px solid #1f2937; color: #cbd5e1; }\n" +
+            "    tr:nth-child(even) { background: #111827; }\n" +
+            "    .page-break { page-break-after: always; margin: 40px 0; }\n" +
+            "  </style>\n";
+    }
+
+    private String generarResumenEjecutivo(ReporteFinal base) {
+        String estado = base.getEstado() != null ? base.getEstado() : "N/A";
+        String estiloEstado = estado.toLowerCase().contains("act") ? "success" : "warning";
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <div class=\"summary-cards\">\n");
+        sb.append("    <div class=\"summary-card\"><h4>Ensayo</h4><p>").append(base.getNombreEnsayo()).append("</p></div>\n");
+        sb.append("    <div class=\"summary-card\"><h4>Estado</h4><p><span class=\"badge badge-").append(estiloEstado).append("\">").append(estado).append("</span></p></div>\n");
+        sb.append("    <div class=\"summary-card\"><h4>Duración</h4><p>").append(base.getFechaInicio()).append(" → ").append(base.getFechaFin()).append("</p></div>\n");
+        sb.append("    <div class=\"summary-card\"><h4>Responsable</h4><p>").append(base.getResponsable()).append("</p></div>\n");
+        sb.append("  </div>\n");
+        return sb.toString();
+    }
+
+    private String generarTituloEncabezado() {
+        return "  <h1>REPORTE COMPLETO DE ENSAYO</h1>\n";
+    }
+
+    private String generarSeccionResumenMetricas(ReporteFinal base, double q1, double q2, double q3) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <h2>Indicadores Clave</h2>\n");
+        sb.append("  <div class=\"metric-row\">\n");
+        sb.append("    <div class=\"metric-card emphasis\"><strong>Registros</strong><span>").append(base.getTotalDatos()).append("</span></div>\n");
+        sb.append("    <div class=\"metric-card\"><strong>Anormales</strong><span>").append(base.getDatosAnormales()).append(" (" ).append(String.format("%.2f%%", base.getPorcentajeAnormales())).append(")</span></div>\n");
+        sb.append("    <div class=\"metric-card\"><strong>Media</strong><span>").append(String.format("%.2f", base.getMedia())).append("</span></div>\n");
+        sb.append("    <div class=\"metric-card\"><strong>Rango</strong><span>").append(String.format("%.2f", base.getRango())).append("</span></div>\n");
+        sb.append("  </div>\n");
+        return sb.toString();
+    }
+
+    private String generarSeccionInformacion(ReporteFinal base) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <h2>Información del Ensayo</h2>\n");
+        sb.append("  <div class=\"info-section\">\n");
+        sb.append("    <p><strong>Ensayo:</strong><br>").append(base.getNombreEnsayo()).append("</p>\n");
+        sb.append("    <p><strong>Máquina:</strong><br>").append(base.getNombreMaquina()).append("<br><em>").append(base.getTipoMaquina()).append("</em></p>\n");
+        sb.append("    <p><strong>Período:</strong><br>").append(base.getFechaInicio()).append(" a ").append(base.getFechaFin()).append("</p>\n");
+        sb.append("    <p><strong>Responsable:</strong><br>").append(base.getResponsable()).append("</p>\n");
+        sb.append("    <p><strong>Límite Inferior:</strong><br>").append(String.format("%.2f", base.getLimiteInferior())).append("</p>\n");
+        sb.append("    <p><strong>Límite Superior:</strong><br>").append(String.format("%.2f", base.getLimiteSuperior())).append("</p>\n");
+        sb.append("    <p><strong>Registros:</strong><br>").append(base.getTotalDatos()).append("</p>\n");
+        sb.append("    <p><strong>Anormales:</strong><br>").append(base.getDatosAnormales()).append(" (" ).append(String.format("%.2f%%", base.getPorcentajeAnormales())).append(")</p>\n");
+        sb.append("  </div>\n");
+        return sb.toString();
+    }
+
+    private String generarSeccionEstadisticas(ReporteFinal base, double q1, double q2, double q3) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <h2>Estadísticas y Cuartiles</h2>\n");
+        sb.append("  <div class=\"stats-grid\">\n");
+        sb.append("    <div class=\"stat-box\"><div class=\"stat-value\">").append(String.format("%.2f", base.getMinimo())).append("</div><div class=\"stat-label\">Q0 Mín</div></div>\n");
+        sb.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #f39c12, #d68910);\"><div class=\"stat-value\">").append(String.format("%.2f", q1)).append("</div><div class=\"stat-label\">Q1 (25%)</div></div>\n");
+        sb.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #2ecc71, #27ae60);\"><div class=\"stat-value\">").append(String.format("%.2f", q2)).append("</div><div class=\"stat-label\">Q2 Mediana</div></div>\n");
+        sb.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #e74c3c, #c0392b);\"><div class=\"stat-value\">").append(String.format("%.2f", q3)).append("</div><div class=\"stat-label\">Q3 (75%)</div></div>\n");
+        sb.append("  </div>\n");
+        sb.append("  <div class=\"stats-grid\">\n");
+        sb.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #9b59b6, #8e44ad);\"><div class=\"stat-value\">").append(String.format("%.2f", base.getMaximo())).append("</div><div class=\"stat-label\">Q4 Máx</div></div>\n");
+        sb.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #3498db, #2980b9);\"><div class=\"stat-value\">").append(String.format("%.2f", base.getMedia())).append("</div><div class=\"stat-label\">Media</div></div>\n");
+        sb.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #1abc9c, #16a085);\"><div class=\"stat-value\">").append(String.format("%.2f", base.getDesviacionEstandar())).append("</div><div class=\"stat-label\">Desv. Est.</div></div>\n");
+        sb.append("    <div class=\"stat-box\" style=\"background: linear-gradient(135deg, #34495e, #2c3e50);\"><div class=\"stat-value\">").append(base.getTotalDatos()).append("</div><div class=\"stat-label\">Registros</div></div>\n");
+        sb.append("  </div>\n");
+        return sb.toString();
+    }
+
+    private String generarTablaEstadisticas(ReporteFinal base, double q1, double q2, double q3) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <h2>Tabla de Estadísticas Detallada</h2>\n");
+        sb.append("  <table>\n");
+        sb.append("    <tr><th>Métrica</th><th>Valor</th></tr>\n");
+        sb.append("    <tr><td>Total de Registros</td><td>").append(base.getTotalDatos()).append("</td></tr>\n");
+        sb.append("    <tr><td>Registros Anormales</td><td>").append(base.getDatosAnormales()).append(" (").append(String.format("%.2f%%", base.getPorcentajeAnormales())).append(")</td></tr>\n");
+        sb.append("    <tr><td>Media</td><td>").append(String.format("%.4f", base.getMedia())).append("</td></tr>\n");
+        sb.append("    <tr><td>Desviación Estándar</td><td>").append(String.format("%.4f", base.getDesviacionEstandar())).append("</td></tr>\n");
+        sb.append("    <tr><td>Q1 (25%)</td><td>").append(String.format("%.4f", q1)).append("</td></tr>\n");
+        sb.append("    <tr><td>Mediana (Q2)</td><td>").append(String.format("%.4f", q2)).append("</td></tr>\n");
+        sb.append("    <tr><td>Q3 (75%)</td><td>").append(String.format("%.4f", q3)).append("</td></tr>\n");
+        sb.append("    <tr><td>Valor Mínimo</td><td>").append(String.format("%.4f", base.getMinimo())).append("</td></tr>\n");
+        sb.append("    <tr><td>Valor Máximo</td><td>").append(String.format("%.4f", base.getMaximo())).append("</td></tr>\n");
+        sb.append("    <tr><td>Rango</td><td>").append(String.format("%.4f", base.getRango())).append("</td></tr>\n");
+        sb.append("    <tr><td>IQR (Q3-Q1)</td><td>").append(String.format("%.4f", q3 - q1)).append("</td></tr>\n");
+        sb.append("    <tr><td>Límite Inferior</td><td>").append(String.format("%.4f", base.getLimiteInferior())).append("</td></tr>\n");
+        sb.append("    <tr><td>Límite Superior</td><td>").append(String.format("%.4f", base.getLimiteSuperior())).append("</td></tr>\n");
+        
         if (base.getCalculaFH() != null && base.getCalculaFH() && base.getFactorHistorico() != null) {
-            html.append("    <tr style=\"background: #fff3cd; font-weight: bold;\"><td>Factor Histórico (FH)</td><td>").append(String.format("%.6f", base.getFactorHistorico())).append("</td></tr>\n");
-            html.append("    <tr style=\"background: #fff3cd;\"><td>Parámetro Z</td><td>").append(base.getParametroZ()).append("</td></tr>\n");
-            html.append("    <tr style=\"background: #fff3cd; font-size: 11px;\"><td colspan=\"2\"><em>Fórmula: FH = Σ(10<sup>((Ti - 250)/z)</sup> · Δt)</em></td></tr>\n");
+            sb.append("    <tr style=\"background: #fff3cd; font-weight: bold;\"><td>Factor Histórico (FH)</td><td>").append(String.format("%.6f", base.getFactorHistorico())).append("</td></tr>\n");
+            sb.append("    <tr style=\"background: #fff3cd;\"><td>Parámetro Z</td><td>").append(base.getParametroZ()).append("</td></tr>\n");
+            sb.append("    <tr style=\"background: #fff3cd; font-size: 11px;\"><td colspan=\"2\"><em>Fórmula: FH = Σ(10<sup>((Ti - 250)/z)</sup> · Δt)</em></td></tr>\n");
         }
+        sb.append("  </table>\n");
+        return sb.toString();
+    }
+
+    private String generarSeccionGraficas(ReporteFinal base, List<DatoEnsayoTemporal> datos, 
+            double q1, double q2, double q3, Map<String, List<DatoEnsayoTemporal>> datosPorSensor) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <div class=\"page-break\"></div>\n");
+        sb.append("  <h2>Gráficas de Análisis - Parte 1</h2>\n");
+        sb.append("  <div class=\"chart-container\"><canvas id=\"boxPlot\"></canvas></div>\n");
+        sb.append("  <div class=\"chart-zoom-info\"><strong>Serie Temporal Interactiva:</strong> Usa la rueda del ratón para hacer ZOOM. Mantén click izquierdo para desplazarte (PAN). Click derecho para resetear.</div>\n");
+        sb.append("  <div class=\"chart-container\"><canvas id=\"timeSeries\"></canvas></div>\n");
+        sb.append("  <div style=\"margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;\">\n");
+        sb.append("    <label for=\"timeSeriesSlider\" style=\"display: block; margin-bottom: 5px; font-weight: bold; font-size: 12px;\">Desplazamiento: <span id=\"sliderValue\">0</span> / <span id=\"sliderMax\">0</span></label>\n");
+        sb.append("    <input type=\"range\" id=\"timeSeriesSlider\" min=\"0\" max=\"100\" value=\"0\" style=\"width: 100%; cursor: pointer;\">\n");
+        sb.append("  </div>\n");
         
-        html.append("  </table>\n");
+        sb.append("  <div class=\"page-break\"></div>\n");
+        sb.append("  <h2>Gráficas de Análisis - Parte 2</h2>\n");
+        sb.append("  <div class=\"chart-row\">\n");
+        sb.append("    <div class=\"chart-half\"><canvas id=\"histogram\"></canvas></div>\n");
+        sb.append("    <div class=\"chart-half\"><canvas id=\"anomaly\"></canvas></div>\n");
+        sb.append("  </div>\n");
+        sb.append("  <div class=\"chart-row\">\n");
+        sb.append("    <div class=\"chart-half\"><canvas id=\"quartiles\"></canvas></div>\n");
+        sb.append("    <div class=\"chart-half\"><canvas id=\"limits\"></canvas></div>\n");
+        sb.append("  </div>\n");
         
-        // Página de Gráficas 1
-        html.append("  <div class=\"page-break\"></div>\n");
-        html.append("  <h2>Gráficas de Análisis - Parte 1</h2>\n");
-        html.append("  <div class=\"chart-container\"><canvas id=\"boxPlot\"></canvas></div>\n");
-        html.append("  <div class=\"chart-zoom-info\"><strong>Serie Temporal Interactiva:</strong> Usa la rueda del ratón para hacer ZOOM. Mantén click izquierdo para desplazarte (PAN). Click derecho para resetear.</div>\n");
-        html.append("  <div class=\"chart-container\"><canvas id=\"timeSeries\"></canvas></div>\n");
-        html.append("  <div style=\"margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;\">\n");
-        html.append("    <label for=\"timeSeriesSlider\" style=\"display: block; margin-bottom: 5px; font-weight: bold; font-size: 12px;\">Desplazamiento: <span id=\"sliderValue\">0</span> / <span id=\"sliderMax\">0</span></label>\n");
-        html.append("    <input type=\"range\" id=\"timeSeriesSlider\" min=\"0\" max=\"100\" value=\"0\" style=\"width: 100%; cursor: pointer;\">\n");
-        html.append("  </div>\n");
+        sb.append("<script>\n");
+        sb.append(generarScriptGraficas(base, datos, q1, q2, q3, datosPorSensor));
+        sb.append("</script>\n");
         
-        // Página de Gráficas 2
-        html.append("  <div class=\"page-break\"></div>\n");
-        html.append("  <h2>Gráficas de Análisis - Parte 2</h2>\n");
-        html.append("  <div class=\"chart-row\">\n");
-        html.append("    <div class=\"chart-half\"><canvas id=\"histogram\"></canvas></div>\n");
-        html.append("    <div class=\"chart-half\"><canvas id=\"anomaly\"></canvas></div>\n");
-        html.append("  </div>\n");
-        html.append("  <div class=\"chart-row\">\n");
-        html.append("    <div class=\"chart-half\"><canvas id=\"quartiles\"></canvas></div>\n");
-        html.append("    <div class=\"chart-half\"><canvas id=\"limits\"></canvas></div>\n");
-        html.append("  </div>\n");
+        return sb.toString();
+    }
+
+    private String generarSeccionSensores(Map<String, List<DatoEnsayoTemporal>> datosPorSensor) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <div class=\"page-break\"></div>\n");
+        sb.append("  <h2>Análisis Detallado por Sensor</h2>\n");
         
-        // Análisis por Sensor
-        html.append("  <div class=\"page-break\"></div>\n");
-        html.append("  <h2>Análisis Detallado por Sensor</h2>\n");
         int sensorIdx = 0;
         for (String sensor : datosPorSensor.keySet()) {
             List<DatoEnsayoTemporal> datosSensor = datosPorSensor.get(sensor);
@@ -571,201 +672,190 @@ public class GeneradorReporteFinal {
             double maxSensor = datosSensor.stream().mapToDouble(DatoEnsayoTemporal::getValor).max().orElse(0);
             long anormalesSensor = datosSensor.stream().filter(d -> d.getAnormal() != null && d.getAnormal()).count();
             
-            html.append("  <div class=\"sensor-section\">\n");
-            html.append("    <div class=\"sensor-title\">Sensor: ").append(sensor).append("</div>\n");
-            html.append("    <table style=\"font-size: 12px;\">\n");
-            html.append("      <tr><td><strong>Registros:</strong></td><td>").append(datosSensor.size()).append("</td><td><strong>Media:</strong></td><td>").append(String.format("%.2f", mediaSensor)).append("</td></tr>\n");
-            html.append("      <tr><td><strong>Mínimo:</strong></td><td>").append(String.format("%.2f", minSensor)).append("</td><td><strong>Máximo:</strong></td><td>").append(String.format("%.2f", maxSensor)).append("</td></tr>\n");
-            html.append("      <tr><td><strong>Rango:</strong></td><td>").append(String.format("%.2f", maxSensor - minSensor)).append("</td><td><strong>Anormales:</strong></td><td>").append(anormalesSensor).append("</td></tr>\n");
-            html.append("    </table>\n");
-            html.append("    <div class=\"chart-container\" style=\"height: 250px; margin: 10px 0;\">\n");
-            html.append("      <canvas id=\"sensorChart").append(sensorIdx).append("\"></canvas>\n");
-            html.append("    </div>\n");
-            html.append("  </div>\n");
+            sb.append("  <div class=\"sensor-section\">\n");
+            sb.append("    <div class=\"sensor-title\">Sensor: ").append(sensor).append("</div>\n");
+            sb.append("    <table style=\"font-size: 12px;\">\n");
+            sb.append("      <tr><td><strong>Registros:</strong></td><td>").append(datosSensor.size()).append("</td><td><strong>Media:</strong></td><td>").append(String.format("%.2f", mediaSensor)).append("</td></tr>\n");
+            sb.append("      <tr><td><strong>Mínimo:</strong></td><td>").append(String.format("%.2f", minSensor)).append("</td><td><strong>Máximo:</strong></td><td>").append(String.format("%.2f", maxSensor)).append("</td></tr>\n");
+            sb.append("      <tr><td><strong>Rango:</strong></td><td>").append(String.format("%.2f", maxSensor - minSensor)).append("</td><td><strong>Anormales:</strong></td><td>").append(anormalesSensor).append("</td></tr>\n");
+            sb.append("    </table>\n");
+            sb.append("    <div class=\"chart-container\" style=\"height: 250px; margin: 10px 0;\">\n");
+            sb.append("      <canvas id=\"sensorChart").append(sensorIdx).append("\"></canvas>\n");
+            sb.append("    </div>\n");
+            sb.append("  </div>\n");
             sensorIdx++;
         }
         
-        // Correcciones
-        if (correcciones != null && !correcciones.isEmpty()) {
-            html.append("  <div class=\"page-break\"></div>\n");
-            html.append("  <h2>Correcciones Aplicadas</h2>\n");
-            for (com.sivco.gestion_archivos.modelos.CalibrationCorrection correccion : correcciones) {
-                html.append("  <div class=\"sensor-section\">\n");
-                html.append("    <p><strong>Archivo:</strong> ").append(correccion.getNombreArchivo()).append("</p>\n");
-                html.append("    <p><strong>Fecha:</strong> ").append(correccion.getFechaSubida()).append("</p>\n");
-                html.append("    <p><strong>Subido por:</strong> ").append(correccion.getSubidoPor()).append("</p>\n");
-                if (correccion.getDescripcion() != null && !correccion.getDescripcion().isEmpty()) {
-                    html.append("    <p><strong>Descripción:</strong> ").append(correccion.getDescripcion()).append("</p>\n");
-                }
-                html.append("  </div>\n");
+        return sb.toString();
+    }
+
+    private String generarSeccionCorrecciones(java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones) {
+        if (correcciones == null || correcciones.isEmpty()) return "";
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("  <div class=\"page-break\"></div>\n");
+        sb.append("  <h2>Correcciones Aplicadas</h2>\n");
+        for (com.sivco.gestion_archivos.modelos.CalibrationCorrection correccion : correcciones) {
+            sb.append("  <div class=\"sensor-section\">\n");
+            sb.append("    <p><strong>Archivo:</strong> ").append(correccion.getNombreArchivo()).append("</p>\n");
+            sb.append("    <p><strong>Fecha:</strong> ").append(correccion.getFechaSubida()).append("</p>\n");
+            sb.append("    <p><strong>Subido por:</strong> ").append(correccion.getSubidoPor()).append("</p>\n");
+            if (correccion.getDescripcion() != null && !correccion.getDescripcion().isEmpty()) {
+                sb.append("    <p><strong>Descripción:</strong> ").append(correccion.getDescripcion()).append("</p>\n");
             }
+            sb.append("  </div>\n");
         }
+        return sb.toString();
+    }
+
+    private String generarFooter() {
+        return "  <div style=\"margin-top: 40px; padding-top: 20px; border-top: 2px solid #ecf0f1; text-align: center; color: #7f8c8d; font-size: 12px;\">\n" +
+               "    <p>Reporte generado automáticamente - Sistema de Gestión de Archivos y Ensayos</p>\n" +
+               "  </div>\n";
+    }
+
+    private String generarScriptGraficas(ReporteFinal base, List<DatoEnsayoTemporal> datos, 
+            double q1, double q2, double q3, Map<String, List<DatoEnsayoTemporal>> datosPorSensor) {
+        StringBuilder script = new StringBuilder();
         
-        // Footer
-        html.append("  <div style=\"margin-top: 40px; padding-top: 20px; border-top: 2px solid #ecf0f1; text-align: center; color: #7f8c8d; font-size: 12px;\">\n");
-        html.append("    <p>Reporte generado automáticamente - Sistema de Gestión de Archivos y Ensayos</p>\n");
-        html.append("  </div>\n");
-        html.append("</div>\n");
+        // Variables globales
+        script.append("  const media = ").append(base.getMedia()).append(";\n");
+        script.append("  const minVal = ").append(base.getMinimo()).append(";\n");
+        script.append("  const maxVal = ").append(base.getMaximo()).append(";\n");
+        script.append("  const q1 = ").append(q1).append(";\n");
+        script.append("  const q2 = ").append(q2).append(";\n");
+        script.append("  const q3 = ").append(q3).append(";\n");
+        script.append("  const limInf = ").append(base.getLimiteInferior()).append(";\n");
+        script.append("  const limSup = ").append(base.getLimiteSuperior()).append(";\n");
+        script.append("  const normales = ").append(base.getTotalDatos() - base.getDatosAnormales()).append(";\n");
+        script.append("  const anormales = ").append(base.getDatosAnormales()).append(";\n");
         
-        // Scripts Chart.js
-        html.append("<script>\n");
-        html.append("  const media = ").append(base.getMedia()).append(";\n");
-        html.append("  const desv = ").append(base.getDesviacionEstandar()).append(";\n");
-        html.append("  const minVal = ").append(base.getMinimo()).append(";\n");
-        html.append("  const maxVal = ").append(base.getMaximo()).append(";\n");
-        html.append("  const q1 = ").append(q1).append(";\n");
-        html.append("  const q2 = ").append(q2).append(";\n");
-        html.append("  const q3 = ").append(q3).append(";\n");
-        html.append("  const limInf = ").append(base.getLimiteInferior()).append(";\n");
-        html.append("  const limSup = ").append(base.getLimiteSuperior()).append(";\n");
-        html.append("  const normales = ").append(base.getTotalDatos() - base.getDatosAnormales()).append(";\n");
-        html.append("  const anormales = ").append(base.getDatosAnormales()).append(";\n");
+        // Gráficas principales
+        script.append(generarGraficaBoxPlot(q1, q2, q3, base));
+        script.append(generarGraficaSeriesTiempo(datos, base));
+        script.append(generarGraficasAnalisis(base, datos, q1, q2, q3));
+        script.append(generarGraficasSensores(datosPorSensor));
         
-        // Gráfica 1: Box Plot
-        html.append("  new Chart(document.getElementById('boxPlot'), {\n");
-        html.append("    type: 'bar',\n");
-        html.append("    data: {\n");
-        html.append("      labels: ['Q0', 'Q1', 'Q2', 'Q3', 'Q4'],\n");
-        html.append("      datasets: [{\n");
-        html.append("        label: 'Cuartiles',\n");
-        html.append("        data: [minVal, q1, q2, q3, maxVal],\n");
-        html.append("        backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6']\n");
-        html.append("      }]\n");
-        html.append("    },\n");
-        html.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Box Plot - Análisis de Cuartiles' } } }\n");
-        html.append("  });\n");
-        
-        // Gráfica 2: Serie de Tiempo
+        return script.toString();
+    }
+
+    private String generarGraficaBoxPlot(double q1, double q2, double q3, ReporteFinal base) {
+        return "  new Chart(document.getElementById('boxPlot'), {\n" +
+               "    type: 'bar',\n" +
+               "    data: {\n" +
+               "      labels: ['Q0', 'Q1', 'Q2', 'Q3', 'Q4'],\n" +
+               "      datasets: [{\n" +
+               "        label: 'Cuartiles',\n" +
+               "        data: [minVal, q1, q2, q3, maxVal],\n" +
+               "        backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6']\n" +
+               "      }]\n" +
+               "    },\n" +
+               "    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Box Plot - Análisis de Cuartiles' } } }\n" +
+               "  });\n";
+    }
+
+    private String generarGraficaSeriesTiempo(List<DatoEnsayoTemporal> datos, ReporteFinal base) {
         String valoresArray = generarArrayValores(datos);
-        html.append("  const valores = ").append(valoresArray).append(";\n");
-        html.append("  const etiquetas = Array.from({length: valores.length}, (_, i) => i+1);\n");
-        html.append("  const timeSeriesChart = new Chart(document.getElementById('timeSeries'), {\n");
-        html.append("    type: 'line',\n");
-        html.append("    data: {\n");
-        html.append("      labels: etiquetas,\n");
-        html.append("      datasets: [\n");
-        html.append("        {label: 'Valores', data: valores, borderColor: '#3498db', tension: 0.2, fill: false},\n");
-        html.append("        {label: 'Límite Sup', data: Array(valores.length).fill(limSup), borderColor: '#e74c3c', borderDash: [5,5], fill: false},\n");
-        html.append("        {label: 'Límite Inf', data: Array(valores.length).fill(limInf), borderColor: '#e74c3c', borderDash: [5,5], fill: false}\n");
-        html.append("      ]\n");
-        html.append("    },\n");
-        html.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Serie Temporal - Valores vs Límites (Scroll para hacer zoom)' }, zoom: { zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } } } }\n");
-        html.append("  });\n");
-        html.append("  \n");
-        html.append("  // Configurar slider para serie temporal (actualiza options.scales.x)\n");
-        html.append("  const slider = document.getElementById('timeSeriesSlider');\n");
-        html.append("  const sliderValue = document.getElementById('sliderValue');\n");
-        html.append("  const sliderMax = document.getElementById('sliderMax');\n");
-        html.append("  const dataLength = valores.length;\n");
-        html.append("  const windowSize = Math.min(50, dataLength);\n");
-        html.append("  const maxPos = Math.max(0, dataLength - windowSize);\n");
-        html.append("  slider.max = maxPos;\n");
-        html.append("  slider.value = 0;\n");
-        html.append("  sliderMax.textContent = slider.max;\n");
-        html.append("  sliderValue.textContent = 0;\n");
-        html.append("\n");
-        html.append("  function updateChartWindow(pos) {\n");
-        html.append("    const min = pos;\n");
-        html.append("    const max = pos + windowSize;\n");
-        html.append("    if (typeof timeSeriesChart !== 'undefined') {\n");
-        html.append("      if (timeSeriesChart.options && timeSeriesChart.options.scales && timeSeriesChart.options.scales.x) {\n");
-        html.append("        timeSeriesChart.options.scales.x.min = min;\n");
-        html.append("        timeSeriesChart.options.scales.x.max = max;\n");
-        html.append("      }\n");
-        html.append("      if (timeSeriesChart.scales && timeSeriesChart.scales.x) {\n");
-        html.append("        timeSeriesChart.scales.x.min = min;\n");
-        html.append("        timeSeriesChart.scales.x.max = max;\n");
-        html.append("      }\n");
-        html.append("      try { timeSeriesChart.update('none'); } catch (e) { }\n");
-        html.append("    }\n");
-        html.append("  }\n");
-        html.append("\n");
-        html.append("  // Inicializa ventana visible\n");
-        html.append("  setTimeout(() => { updateChartWindow(0); }, 50);\n");
-        html.append("\n");
-        html.append("  slider.addEventListener('input', function() {\n");
-        html.append("    const pos = Math.max(0, Math.min(parseInt(this.value || 0), maxPos));\n");
-        html.append("    sliderValue.textContent = pos;\n");
-        html.append("    updateChartWindow(pos);\n");
-        html.append("  });\n");
+        return "  const valores = " + valoresArray + ";\n" +
+               "  const etiquetas = Array.from({length: valores.length}, (_, i) => i+1);\n" +
+               "  const timeSeriesChart = new Chart(document.getElementById('timeSeries'), {\n" +
+               "    type: 'line',\n" +
+               "    data: {\n" +
+               "      labels: etiquetas,\n" +
+               "      datasets: [\n" +
+               "        {label: 'Valores', data: valores, borderColor: '#3498db', tension: 0.2, fill: false},\n" +
+               "        {label: 'Límite Sup', data: Array(valores.length).fill(limSup), borderColor: '#e74c3c', borderDash: [5,5], fill: false},\n" +
+               "        {label: 'Límite Inf', data: Array(valores.length).fill(limInf), borderColor: '#e74c3c', borderDash: [5,5], fill: false}\n" +
+               "      ]\n" +
+               "    },\n" +
+               "    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Serie Temporal - Valores vs Límites' }, zoom: { zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } } } }\n" +
+               "  });\n" +
+               "  const slider = document.getElementById('timeSeriesSlider');\n" +
+               "  const sliderValue = document.getElementById('sliderValue');\n" +
+               "  const sliderMax = document.getElementById('sliderMax');\n" +
+               "  const dataLength = valores.length;\n" +
+               "  const windowSize = Math.min(50, dataLength);\n" +
+               "  const maxPos = Math.max(0, dataLength - windowSize);\n" +
+               "  slider.max = maxPos;\n" +
+               "  slider.value = 0;\n" +
+               "  sliderMax.textContent = slider.max;\n" +
+               "  function updateChartWindow(pos) {\n" +
+               "    if (timeSeriesChart.options?.scales?.x) {\n" +
+               "      timeSeriesChart.options.scales.x.min = pos;\n" +
+               "      timeSeriesChart.options.scales.x.max = pos + windowSize;\n" +
+               "      timeSeriesChart.update('none');\n" +
+               "    }\n" +
+               "  }\n" +
+               "  slider.addEventListener('input', function() {\n" +
+               "    const pos = Math.max(0, Math.min(parseInt(this.value || 0), maxPos));\n" +
+               "    sliderValue.textContent = pos;\n" +
+               "    updateChartWindow(pos);\n" +
+               "  });\n";
+    }
+
+    private String generarGraficasAnalisis(ReporteFinal base, List<DatoEnsayoTemporal> datos, double q1, double q2, double q3) {
+        StringBuilder sb = new StringBuilder();
         
-        // Gráfica 3: Histograma
         long cnt1 = contarEnRango(datos, Double.NEGATIVE_INFINITY, q1);
         long cnt2 = contarEnRango(datos, q1, q2);
         long cnt3 = contarEnRango(datos, q2, q3);
         long cnt4 = contarEnRango(datos, q3, Double.POSITIVE_INFINITY);
-        html.append("  new Chart(document.getElementById('histogram'), {\n");
-        html.append("    type: 'bar',\n");
-        html.append("    data: {\n");
-        html.append("      labels: ['<Q1', 'Q1-Q2', 'Q2-Q3', '>Q3'],\n");
-        html.append("      datasets: [{\n");
-        html.append("        label: 'Histograma',\n");
-        html.append("        data: [").append(cnt1).append(", ").append(cnt2).append(", ").append(cnt3).append(", ").append(cnt4).append("],\n");
-        html.append("        backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c']\n");
-        html.append("      }]\n");
-        html.append("    },\n");
-        html.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Histograma - Distribución por Cuartiles' } } }\n");
-        html.append("  });\n");
         
-        // Gráfica 4: Anomalías
-        html.append("  new Chart(document.getElementById('anomaly'), {\n");
-        html.append("    type: 'doughnut',\n");
-        html.append("    data: {\n");
-        html.append("      labels: ['Normales', 'Anormales'],\n");
-        html.append("      datasets: [{\n");
-        html.append("        data: [normales, anormales],\n");
-        html.append("        backgroundColor: ['#2ecc71', '#e74c3c']\n");
-        html.append("      }]\n");
-        html.append("    },\n");
-        html.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Distribución de Anomalías' } } }\n");
-        html.append("  });\n");
+        // Histograma
+        sb.append("  new Chart(document.getElementById('histogram'), {\n");
+        sb.append("    type: 'bar',\n");
+        sb.append("    data: { labels: ['<Q1', 'Q1-Q2', 'Q2-Q3', '>Q3'],\n");
+        sb.append("      datasets: [{ label: 'Histograma', data: [").append(cnt1).append(", ").append(cnt2).append(", ").append(cnt3).append(", ").append(cnt4).append("],\n");
+        sb.append("        backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c'] }] },\n");
+        sb.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Histograma - Distribución' } } }\n");
+        sb.append("  });\n");
         
-        // Gráfica 5: Cuartiles
-        html.append("  new Chart(document.getElementById('quartiles'), {\n");
-        html.append("    type: 'bar',\n");
-        html.append("    data: {\n");
-        html.append("      labels: ['IQR', 'Min-Q1', 'Q3-Max'],\n");
-        html.append("      datasets: [{\n");
-        html.append("        label: 'Rangos',\n");
-        html.append("        data: [").append(q3 - q1).append(", ").append(q1 - base.getMinimo()).append(", ").append(base.getMaximo() - q3).append("],\n");
-        html.append("        backgroundColor: ['#3498db', '#f39c12', '#e74c3c']\n");
-        html.append("      }]\n");
-        html.append("    },\n");
-        html.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Análisis de Cuartiles - IQR' } } }\n");
-        html.append("  });\n");
+        // Anomalías
+        sb.append("  new Chart(document.getElementById('anomaly'), {\n");
+        sb.append("    type: 'doughnut',\n");
+        sb.append("    data: { labels: ['Normales', 'Anormales'],\n");
+        sb.append("      datasets: [{ data: [normales, anormales], backgroundColor: ['#2ecc71', '#e74c3c'] }] },\n");
+        sb.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Distribución de Anomalías' } } }\n");
+        sb.append("  });\n");
         
-        // Gráfica 6: Límites
-        html.append("  new Chart(document.getElementById('limits'), {\n");
-        html.append("    type: 'bar',\n");
-        html.append("    data: {\n");
-        html.append("      labels: ['Lim Inf', 'Mín', 'Media', 'Máx', 'Lim Sup'],\n");
-        html.append("      datasets: [{\n");
-        html.append("        label: 'Valores',\n");
-        html.append("        data: [limInf, minVal, media, maxVal, limSup],\n");
-        html.append("        backgroundColor: ['#e74c3c', '#3498db', '#f39c12', '#3498db', '#e74c3c']\n");
-        html.append("      }]\n");
-        html.append("    },\n");
-        html.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Comparación de Límites' } } }\n");
-        html.append("  });\n");
+        // Cuartiles
+        sb.append("  new Chart(document.getElementById('quartiles'), {\n");
+        sb.append("    type: 'bar',\n");
+        sb.append("    data: { labels: ['IQR', 'Min-Q1', 'Q3-Max'],\n");
+        sb.append("      datasets: [{ label: 'Rangos', data: [").append(q3 - q1).append(", ").append(q1 - base.getMinimo()).append(", ").append(base.getMaximo() - q3).append("],\n");
+        sb.append("        backgroundColor: ['#3498db', '#f39c12', '#e74c3c'] }] },\n");
+        sb.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Análisis de Cuartiles' } } }\n");
+        sb.append("  });\n");
         
-        // Gráficas por Sensor
-        sensorIdx = 0;
+        // Límites
+        sb.append("  new Chart(document.getElementById('limits'), {\n");
+        sb.append("    type: 'bar',\n");
+        sb.append("    data: { labels: ['Lim Inf', 'Mín', 'Media', 'Máx', 'Lim Sup'],\n");
+        sb.append("      datasets: [{ label: 'Valores', data: [limInf, minVal, media, maxVal, limSup],\n");
+        sb.append("        backgroundColor: ['#e74c3c', '#3498db', '#f39c12', '#3498db', '#e74c3c'] }] },\n");
+        sb.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Comparación de Límites' } } }\n");
+        sb.append("  });\n");
+        
+        return sb.toString();
+    }
+
+    private String generarGraficasSensores(Map<String, List<DatoEnsayoTemporal>> datosPorSensor) {
+        StringBuilder sb = new StringBuilder();
+        int sensorIdx = 0;
         for (String sensor : datosPorSensor.keySet()) {
             List<DatoEnsayoTemporal> datosSensor = datosPorSensor.get(sensor);
             String valoresS = generarArrayValores(datosSensor);
-            html.append("  new Chart(document.getElementById('sensorChart").append(sensorIdx).append("'), {\n");
-            html.append("    type: 'line',\n");
-            html.append("    data: {\n");
-            html.append("      labels: Array.from({length: ").append(datosSensor.size()).append("}, (_, i) => i+1),\n");
-            html.append("      datasets: [{label: '").append(sensor).append("', data: ").append(valoresS).append(", borderColor: '#3498db', tension: 0.2, fill: false}]\n");
-            html.append("    },\n");
-            html.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Sensor: ").append(sensor).append("' } } }\n");
-            html.append("  });\n");
+            sb.append("  new Chart(document.getElementById('sensorChart").append(sensorIdx).append("'), {\n");
+            sb.append("    type: 'line',\n");
+            sb.append("    data: {\n");
+            sb.append("      labels: Array.from({length: ").append(datosSensor.size()).append("}, (_, i) => i+1),\n");
+            sb.append("      datasets: [{label: '").append(sensor).append("', data: ").append(valoresS).append(", borderColor: '#3498db', tension: 0.2, fill: false}]\n");
+            sb.append("    },\n");
+            sb.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Sensor: ").append(sensor).append("' } } }\n");
+            sb.append("  });\n");
             sensorIdx++;
         }
-        
-        html.append("</script>\n</body>\n</html>\n");
-        return html.toString();
+        return sb.toString();
     }
     
     private double calcularCuartil(List<Double> valores, double percentil) {
