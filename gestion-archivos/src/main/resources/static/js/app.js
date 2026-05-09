@@ -852,7 +852,7 @@ async function cargarAnalisis() {
             crearGraficoAnormales(datosTemporales);
 
             // Nuevas gráficas
-            crearGraficoBoxplot(analisis, valoresOrdenados);
+            crearGraficoBoxplot(datosTemporales, analisis);
             crearGraficoCuartiles(analisis);
             crearGraficoTemporal(datosTemporales);
 
@@ -982,7 +982,7 @@ async function onAnalisisDocumentoChange() {
 
         crearGraficoDistribucion(datos, parseFloat(document.getElementById('statMedia').textContent) || 0);
         crearGraficoAnormales(datos);
-        crearGraficoBoxplot({ q1, mediana: q2, q3, minimo: Math.min(...valoresOrdenados), maximo: Math.max(...valoresOrdenados), media: parseFloat(document.getElementById('statMedia').textContent) }, valoresOrdenados);
+        crearGraficoBoxplot(datos, { q1, mediana: q2, q3, minimo: Math.min(...valoresOrdenados), maximo: Math.max(...valoresOrdenados), media: parseFloat(document.getElementById('statMedia').textContent) });
         crearGraficoCuartiles({ q1, q3, media: parseFloat(document.getElementById('statMedia').textContent), maximo: Math.max(...valoresOrdenados), minimo: Math.min(...valoresOrdenados) });
         crearGraficoTemporal(datos);
         crearAnalisisPorSensor(datos, parseFloat(document.getElementById('statMedia').textContent));
@@ -1094,68 +1094,93 @@ function crearGraficoAnormales(datos) {
     });
 }
 
-function crearGraficoBoxplot(analisis, valoresOrdenados) {
+function crearGraficoBoxplot(datosTemporales, analisis) {
     const ctx = document.getElementById('chartBoxplot');
     if (!ctx) return;
 
-    const q1 = analisis.q1 || calcularCuartil(valoresOrdenados, 0.25);
-    const mediana = analisis.mediana || calcularCuartil(valoresOrdenados, 0.50);
-    const q3 = analisis.q3 || calcularCuartil(valoresOrdenados, 0.75);
-    const min = analisis.minimo;
-    const max = analisis.maximo;
-    const media = analisis.media;
+    // Agrupar datos por sensor
+    const datosPorSensor = {};
+    datosTemporales.forEach(d => {
+        const sensor = d.sensor || 'Sin Sensor';
+        if (!datosPorSensor[sensor]) {
+            datosPorSensor[sensor] = [];
+        }
+        datosPorSensor[sensor].push(d.valor);
+    });
+
+    // Calcular estadísticas por sensor
+    const sensores = Object.keys(datosPorSensor);
+    const labels = sensores;
+    const datasets = [
+        {
+            label: 'Mínimo - Q1',
+            data: [],
+            backgroundColor: 'rgba(52, 152, 219, 0.6)',
+            borderColor: 'rgba(52, 152, 219, 1)',
+            borderWidth: 2
+        },
+        {
+            label: 'Q1 - Mediana',
+            data: [],
+            backgroundColor: 'rgba(46, 204, 113, 0.6)',
+            borderColor: 'rgba(46, 204, 113, 1)',
+            borderWidth: 2
+        },
+        {
+            label: 'Mediana - Q3',
+            data: [],
+            backgroundColor: 'rgba(241, 196, 15, 0.6)',
+            borderColor: 'rgba(241, 196, 15, 1)',
+            borderWidth: 2
+        },
+        {
+            label: 'Q3 - Máximo',
+            data: [],
+            backgroundColor: 'rgba(231, 76, 60, 0.6)',
+            borderColor: 'rgba(231, 76, 60, 1)',
+            borderWidth: 2
+        }
+    ];
+
+    sensores.forEach(sensor => {
+        const valores = datosPorSensor[sensor].sort((a, b) => a - b);
+        const q1 = calcularCuartil(valores, 0.25);
+        const mediana = calcularCuartil(valores, 0.50);
+        const q3 = calcularCuartil(valores, 0.75);
+        const min = Math.min(...valores);
+        const max = Math.max(...valores);
+
+        datasets[0].data.push(q1 - min);
+        datasets[1].data.push(mediana - q1);
+        datasets[2].data.push(q3 - mediana);
+        datasets[3].data.push(max - q3);
+    });
 
     if (chartBoxplot) chartBoxplot.destroy();
 
     chartBoxplot = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Boxplot'],
-            datasets: [
-                {
-                    label: 'Mínimo - Q1',
-                    data: [q1 - min],
-                    backgroundColor: 'rgba(52, 152, 219, 0.6)',
-                    borderColor: 'rgba(52, 152, 219, 1)',
-                    borderWidth: 2
-                },
-                {
-                    label: 'Q1 - Mediana',
-                    data: [mediana - q1],
-                    backgroundColor: 'rgba(46, 204, 113, 0.6)',
-                    borderColor: 'rgba(46, 204, 113, 1)',
-                    borderWidth: 2
-                },
-                {
-                    label: 'Mediana - Q3',
-                    data: [q3 - mediana],
-                    backgroundColor: 'rgba(241, 196, 15, 0.6)',
-                    borderColor: 'rgba(241, 196, 15, 1)',
-                    borderWidth: 2
-                },
-                {
-                    label: 'Q3 - Máximo',
-                    data: [max - q3],
-                    backgroundColor: 'rgba(231, 76, 60, 0.6)',
-                    borderColor: 'rgba(231, 76, 60, 1)',
-                    borderWidth: 2
-                }
-            ]
+            labels: labels,
+            datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            indexAxis: 'y',
             scales: {
                 x: {
                     stacked: true,
                     title: {
                         display: true,
-                        text: 'Valor'
+                        text: 'Sensor'
                     }
                 },
                 y: {
-                    stacked: true
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Valor'
+                    }
                 }
             },
             plugins: {
@@ -1163,10 +1188,18 @@ function crearGraficoBoxplot(analisis, valoresOrdenados) {
                 tooltip: {
                     callbacks: {
                         afterLabel: function(context) {
-                            if (context.datasetIndex === 0) return `Mín: ${min.toFixed(2)}`;
-                            if (context.datasetIndex === 1) return `Q1: ${q1.toFixed(2)}`;
-                            if (context.datasetIndex === 2) return `Mediana: ${mediana.toFixed(2)}`;
-                            if (context.datasetIndex === 3) return `Máx: ${max.toFixed(2)}`;
+                            const sensor = context.label;
+                            const valores = datosPorSensor[sensor].sort((a, b) => a - b);
+                            const q1 = calcularCuartil(valores, 0.25);
+                            const mediana = calcularCuartil(valores, 0.50);
+                            const q3 = calcularCuartil(valores, 0.75);
+                            const min = Math.min(...valores);
+                            const max = Math.max(...valores);
+
+                            if (context.datasetIndex === 0) return `Mín: ${min.toFixed(2)}, Q1: ${q1.toFixed(2)}`;
+                            if (context.datasetIndex === 1) return `Q1: ${q1.toFixed(2)}, Mediana: ${mediana.toFixed(2)}`;
+                            if (context.datasetIndex === 2) return `Mediana: ${mediana.toFixed(2)}, Q3: ${q3.toFixed(2)}`;
+                            if (context.datasetIndex === 3) return `Q3: ${q3.toFixed(2)}, Máx: ${max.toFixed(2)}`;
                             return '';
                         }
                     }
@@ -4270,7 +4303,7 @@ function actualizarGraficaIndividual(tipoGrafica, datos) {
             break;
         case 'boxplot':
             if (chartBoxplot) {
-                crearGraficoBoxplot(analisis, valoresOrdenados);
+                crearGraficoBoxplot(datos, analisis);
             }
             break;
         case 'cuartiles':

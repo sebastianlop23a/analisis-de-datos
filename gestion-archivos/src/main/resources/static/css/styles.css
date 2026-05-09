@@ -737,30 +737,33 @@ body {
 .chart-filter {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.85em;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.95em;
 }
 
 .chart-filter label {
     font-weight: 600;
     color: var(--color-dark);
+    white-space: nowrap;
 }
 
 .filter-time {
-    padding: 4px 6px;
+    padding: 8px 10px;
     border: 1px solid var(--color-border);
     border-radius: 4px;
-    font-size: 0.8em;
-    width: 80px;
+    font-size: 0.95em;
+    min-width: 210px;
+    width: auto;
 }
 
 .btn-filter {
-    padding: 4px 8px;
+    padding: 6px 12px;
     background: var(--color-primary);
     color: white;
     border: none;
     border-radius: 4px;
-    font-size: 0.8em;
+    font-size: 0.9em;
     cursor: pointer;
     transition: var(--transition);
 }
