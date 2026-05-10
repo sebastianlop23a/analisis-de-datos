@@ -86,6 +86,22 @@ public class GeneradorReporteFinal {
         ReporteFinal base = construirReporte(ensayoId, ensayo);
         List<DatoEnsayoTemporal> datos = ensayoServicio.obtenerDatosTemporales(ensayoId);
         
+        // Filtrar sensores con carga 0.0 (sensores donde todas las lecturas son 0.0)
+        Map<String, List<DatoEnsayoTemporal>> datosPorSensorTemp = datos.stream()
+            .collect(Collectors.groupingBy(d -> d.getSensor() != null ? d.getSensor() : "Sin Sensor"));
+        
+        Set<String> sensoresValidos = datosPorSensorTemp.entrySet().stream()
+            .filter(entry -> !entry.getValue().stream().allMatch(d -> d.getValor() == null || d.getValor() == 0.0))
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toSet());
+        
+        datos = datos.stream()
+            .filter(d -> {
+                String sensor = d.getSensor() != null ? d.getSensor() : "Sin Sensor";
+                return sensoresValidos.contains(sensor);
+            })
+            .collect(Collectors.toList());
+        
         // Calcular cuartiles
         List<Double> valoresOrdenados = datos.stream()
             .map(DatoEnsayoTemporal::getValor)
@@ -390,33 +406,7 @@ public class GeneradorReporteFinal {
             .replace("Ñ", "&Ntilde;");
     }
 
-    public String construirHtmlReporte(Long ensayoId, Ensayo ensayo) {
-        ReporteFinal base = construirReporte(ensayoId, ensayo);
-        List<DatoEnsayoTemporal> datos = ensayoServicio.obtenerDatosTemporales(ensayoId);
-        
-        // Obtener correcciones aplicadas
-        java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones = obtenerCorrecciones(datos);
-        
-        // Calcular cuartiles
-        List<Double> valoresOrdenados = datos.stream()
-            .map(DatoEnsayoTemporal::getValor)
-            .sorted()
-            .collect(Collectors.toList());
-        double q1 = calcularCuartil(valoresOrdenados, 0.25);
-        double q2 = calcularCuartil(valoresOrdenados, 0.50);
-        double q3 = calcularCuartil(valoresOrdenados, 0.75);
-        
-        // Agrupar por sensor
-        Map<String, List<DatoEnsayoTemporal>> datosPorSensor = datos.stream()
-            .collect(Collectors.groupingBy(d -> d.getSensor() != null ? d.getSensor() : "Sin Sensor"));
 
-        StringBuilder html = new StringBuilder();
-        
-        // Construir estructura HTML
-        html.append(generarDocumentoHTML(base, datos, q1, q2, q3, datosPorSensor, correcciones));
-        
-        return html.toString();
-    }
 
     /**
      * Obtiene las correcciones aplicadas a los datos del ensayo
