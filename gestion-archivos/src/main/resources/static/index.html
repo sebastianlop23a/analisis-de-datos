@@ -634,6 +634,51 @@
                 </div>
             </div>
 
+            <!-- Comparación de Datos: Manual vs Masivo -->
+
+
+                <div style="overflow-x: auto;">
+                    <table id="tablaComparacion" class="table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8f9fa;">
+                                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 33.33%; background: rgba(52, 211, 153, 0.1); font-weight: 600; color: #27ae60;">
+                                    📋 Datos Manuales (Editable)
+                                </th>
+                                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 33.33%; background: rgba(52, 152, 219, 0.1); font-weight: 600; color: #3498db;">
+                                    📂 Datos del Archivo (Selecciona)
+                                </th>
+                                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 33.33%; background: rgba(231, 76, 60, 0.1); font-weight: 600; color: #e74c3c;">
+                                    📊 Diferencia
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaComparacionBody">
+                            <tr style="height: 40px;">
+                                <td style="text-align: center; color: #999; border: 1px solid #ddd; padding: 12px;">
+                                    <em>Haz clic para editar</em>
+                                </td>
+                                <td style="text-align: center; color: #999; border: 1px solid #ddd; padding: 12px;">
+                                    <em>Carga un ensayo para ver datos</em>
+                                </td>
+                                <td style="text-align: center; color: #999; border: 1px solid #ddd; padding: 12px;">
+                                    <em>-</em>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 15px; padding: 12px; background: #f0f8ff; border-radius: 4px; border-left: 4px solid #3498db; font-size: 13px; color: #555;">
+                    💡 <strong>Cómo usar:</strong> 
+                    <ol style="margin: 8px 0; padding-left: 20px;">
+                        <li>Filtra los datos en la tabla "Datos Registrados" usando los controles de hora y sensor</li>
+                        <li>Selecciona los datos que quieres comparar marcando los checkboxes</li>
+                        <li>Haz clic en "Copiar Seleccionados a Comparación"</li>
+                        <li>Edita los datos manuales haciendo clic en las celdas verdes</li>
+                    </ol>
+                </div>
+            </div>
+
             <div class="table-section">
                 <h3>Datos Registrados</h3>
                 
@@ -667,18 +712,40 @@
                 <table id="tablaDatos" class="table">
                     <thead>
                         <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="checkAllDatos" onchange="seleccionarTodosDatosTabla()" style="width: 16px; height: 16px; cursor: pointer;">
+                            </th>
                             <th>#</th>
                             <th>Timestamp</th>
                             <th>Sensor</th>
                             <th>Valor</th>
                             <th>Anormal</th>
                             <th>Fuente</th>
+                             <!-- Botones para copiar datos seleccionados a comparación -->
+                <div style="margin-top: 15px; padding: 12px; background: rgba(39, 174, 96, 0.08); border-radius: 6px; border: 1px solid rgba(39, 174, 96, 0.2);">
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button onclick="copiarSeleccionadosATablaComparacion()" class="btn btn-success" style="padding: 8px 16px; font-size: 14px;">
+                            📋 Copiar Seleccionados de la Tabla
+                        </button>
+                        <span id="contadorSeleccionados" style="font-size: 13px; color: #27ae60; font-weight: 600;">
+                            0 datos seleccionados
+                        </span>
+                        <button onclick="limpiarSeleccionTabla()" class="btn btn-warning" style="padding: 6px 12px; font-size: 12px;">
+                            ✕ Limpiar Selección
+                        </button>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        💡 Selecciona los datos que quieres comparar en la tabla de registros y luego haz clic en "Copiar Seleccionados de la Tabla"
+                    </div>
+                </div>
                         </tr>
                     </thead>
                     <tbody id="tablaDatosBody">
-                        <tr><td colspan="6" class="loading">Cargando datos...</td></tr>
+                        <tr><td colspan="7" class="loading">Cargando datos...</td></tr>
                     </tbody>
                 </table>
+                
+               
             </div>
         </section>
 
@@ -1042,5 +1109,6 @@ API REST disponible en puerto 8080.
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/comparacion.js"></script>
 </body>
 </html>

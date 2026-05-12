@@ -19,6 +19,9 @@ let ensayosCache = [];
 let reportesCache = [];
 let sensoresCache = [];
 let datosFiltradosActuales = null; // Almacena datos filtrados cuando se aplica filtro
+let datosTablaActual = []; // Datos actualmente mostrados en la tabla de registros
+window.datosFiltradosActuales = datosFiltradosActuales;
+window.datosTablaActual = datosTablaActual;
 
 // Estados de filtros individuales por gráfica
 let filtrosGraficas = {
@@ -1939,6 +1942,12 @@ function llenarTablaDatos(datos) {
     const tbody = document.getElementById('tablaDatosBody');
     tbody.innerHTML = datos.map((d, idx) => `
         <tr>
+            <td style="text-align: center;">
+                <input type="checkbox"
+                       data-index="${idx}"
+                       onchange="actualizarSeleccionTabla(this)"
+                       style="width: 16px; height: 16px; cursor: pointer;">
+            </td>
             <td>${idx + 1}</td>
             <td>${formatDate(d.timestamp)}</td>
             <td><code>${d.sensor || 'N/A'}</code></td>
@@ -1947,6 +1956,21 @@ function llenarTablaDatos(datos) {
             <td>${d.fuente || 'N/A'}</td>
         </tr>
     `).join('');
+
+    // Guardar los datos actualmente mostrados en la tabla de registros
+    datosTablaActual = datos;
+    window.datosTablaActual = datosTablaActual;
+
+    // Limpiar selección cuando se recarga la tabla
+    indicesSeleccionadosTabla.clear();
+    actualizarContadorSeleccionados();
+
+    // Resetear checkbox "todos"
+    const checkAll = document.getElementById('checkAllDatos');
+    if (checkAll) {
+        checkAll.checked = false;
+        checkAll.indeterminate = false;
+    }
 }
 
 // ====================================
@@ -3561,6 +3585,7 @@ function aplicarFiltroHora() {
     
     llenarTablaDatos(datosFiltrados);
     datosFiltradosActuales = datosFiltrados;
+    window.datosFiltradosActuales = datosFiltrados;
     actualizarGraficasConFiltro();
     actualizarFiltroActivoTexto(horaInicioStr, horaFinStr, sensorSeleccionado);
     
@@ -3582,6 +3607,7 @@ function limpiarFiltroHora() {
     
     // Limpiar datos filtrados
     datosFiltradosActuales = null;
+    window.datosFiltradosActuales = null;
     
     // Resetear filtros individuales de gráficas
     filtrosGraficas = {
