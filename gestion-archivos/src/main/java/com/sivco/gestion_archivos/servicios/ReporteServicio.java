@@ -5,6 +5,9 @@ import com.sivco.gestion_archivos.repositorios.ReporteRepositorio;
 import com.sivco.gestion_archivos.repositorios.EnsayoRepositorio;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,13 +25,10 @@ public class ReporteServicio {
 
     @Autowired
     private com.sivco.gestion_archivos.utilidades.GeneradorReporteFinal generadorReporteFinal;
-    
+     
     public Reporte generarReporte(Long ensayoId, TipoReporte tipo, String generadoPor) {
         Ensayo ensayo = ensayoRepositorio.findById(ensayoId)
             .orElseThrow(() -> new RuntimeException("Ensayo no encontrado"));
-        
-        // Obtener datos temporales antes de finalizarlos
-        List<DatoEnsayoTemporal> datos = ensayoServicio.obtenerDatosTemporales(ensayoId);
         
         // Usar versión optimizada para PDF si el tipo es PDF
         String contenido;

@@ -737,33 +737,30 @@ body {
 .chart-filter {
     display: flex;
     align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    font-size: 0.95em;
+    gap: 8px;
+    font-size: 0.85em;
 }
 
 .chart-filter label {
     font-weight: 600;
     color: var(--color-dark);
-    white-space: nowrap;
 }
 
 .filter-time {
-    padding: 8px 10px;
+    padding: 4px 6px;
     border: 1px solid var(--color-border);
     border-radius: 4px;
-    font-size: 0.95em;
-    min-width: 210px;
-    width: auto;
+    font-size: 0.8em;
+    width: 80px;
 }
 
 .btn-filter {
-    padding: 6px 12px;
+    padding: 4px 8px;
     background: var(--color-primary);
     color: white;
     border: none;
     border-radius: 4px;
-    font-size: 0.9em;
+    font-size: 0.8em;
     cursor: pointer;
     transition: var(--transition);
 }
@@ -2052,7 +2049,6 @@ body.dark-mode input[type="password"],
 body.dark-mode input[type="number"],
 body.dark-mode input[type="date"],
 body.dark-mode input[type="datetime"],
-body.dark-mode input[type="datetime-local"],
 body.dark-mode input[type="month"],
 body.dark-mode input[type="search"],
 body.dark-mode input[type="tel"],
@@ -2076,7 +2072,6 @@ body.dark-mode input[type="password"]:focus,
 body.dark-mode input[type="number"]:focus,
 body.dark-mode input[type="date"]:focus,
 body.dark-mode input[type="datetime"]:focus,
-body.dark-mode input[type="datetime-local"]:focus,
 body.dark-mode input[type="month"]:focus,
 body.dark-mode input[type="search"]:focus,
 body.dark-mode input[type="tel"]:focus,
@@ -2145,22 +2140,6 @@ body.dark-mode .model-btn.active {
     background: #3498db;
     border-color: #3498db;
     color: white;
-}
-
-/* Model button active style (light mode) */
-.model-btn {
-    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-
-.model-btn:hover {
-    cursor: pointer;
-    background-color: #f0f4f8;
-}
-
-.model-btn.active {
-    background: #3498db;
-    border-color: #3498db;
-    color: #ffffff;
 }
 
 /* Elementos de form dinámicos en modo oscuro */

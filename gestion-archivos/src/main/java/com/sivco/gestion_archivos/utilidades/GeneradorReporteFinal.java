@@ -382,6 +382,28 @@ public class GeneradorReporteFinal {
         
         return html.toString();
     }
+
+    public String construirHtmlReporte(Long ensayoId, Ensayo ensayo) {
+        ReporteFinal base = construirReporte(ensayoId, ensayo);
+        List<DatoEnsayoTemporal> datos = ensayoServicio.obtenerDatosTemporales(ensayoId);
+
+        List<Double> valoresOrdenados = datos.stream()
+            .map(DatoEnsayoTemporal::getValor)
+            .filter(Objects::nonNull)
+            .sorted()
+            .collect(Collectors.toList());
+
+        double q1 = calcularCuartil(valoresOrdenados, 0.25);
+        double q2 = calcularCuartil(valoresOrdenados, 0.50);
+        double q3 = calcularCuartil(valoresOrdenados, 0.75);
+
+        Map<String, List<DatoEnsayoTemporal>> datosPorSensor = datos.stream()
+            .collect(Collectors.groupingBy(d -> d.getSensor() != null ? d.getSensor() : "Sin Sensor"));
+
+        java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones = obtenerCorrecciones(datos);
+
+        return generarDocumentoHTML(base, datos, q1, q2, q3, datosPorSensor, correcciones);
+    }
     
     // Método auxiliar para escapar caracteres HTML
     private String escaparHtml(String texto) {

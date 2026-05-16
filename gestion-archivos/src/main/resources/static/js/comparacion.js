@@ -31,6 +31,11 @@ let indicesSeleccionadosTabla = new Set();
 let datosMasivoSeleccionadosTabla = []; 
 
 /**
+ * Orden ascendente para la tabla de comparación (true = ascendente, false = descendente)
+ */
+let ordenDiferenciaAscendente = true;
+
+/**
  * Seleccionar/deseleccionar todos los datos en la tabla
  */
 function seleccionarTodosDatosTabla() {
@@ -454,11 +459,48 @@ function actualizarTablaComparacion() {
         10
     );
     
-    let html = '';
+    // Crear array de filas con sus datos y diferencias
+    let filas = [];
     
     for (let i = 0; i < maxFilas; i++) {
         const datoManual = datosManualComparacion[i];
         const datoMasivo = datosMasivoSeleccionados[i];
+        
+        let diferencia = null;
+        if (datoManual && datoManual.valor !== null && datoMasivo) {
+            diferencia = datoManual.valor - datoMasivo.valor;
+        }
+        
+        filas.push({
+            index: i,
+            datoManual,
+            datoMasivo,
+            diferencia
+        });
+    }
+    
+    // Ordenar las filas por diferencia si hay diferencias calculables
+    const filasConDiferencia = filas.filter(f => f.diferencia !== null);
+    if (filasConDiferencia.length > 0) {
+        filas.sort((a, b) => {
+            // Filas sin diferencia van al final
+            if (a.diferencia === null && b.diferencia === null) return 0;
+            if (a.diferencia === null) return 1;
+            if (b.diferencia === null) return -1;
+            
+            if (ordenDiferenciaAscendente) {
+                return a.diferencia - b.diferencia;
+            } else {
+                return b.diferencia - a.diferencia;
+            }
+        });
+    }
+    
+    // Ahora construir el HTML con las filas ordenadas
+    let html = '';
+    
+    for (const fila of filas) {
+        const { datoManual, datoMasivo, diferencia: diff } = fila;
         
         // Columna manual (editable)
         let celdaManual = '';
@@ -466,8 +508,8 @@ function actualizarTablaComparacion() {
             if (datoManual.valor !== null) {
                 celdaManual = `
                     <div 
-                        id="celdaManual_${i}"
-                        onclick="editarDatoManual(${i})"
+                        id="celdaManual_${fila.index}"
+                        onclick="editarDatoManual(${fila.index})"
                         style="
                             padding: 8px; 
                             background: #f0fdf4; 
@@ -487,8 +529,8 @@ function actualizarTablaComparacion() {
             } else {
                 celdaManual = `
                     <div 
-                        id="celdaManual_${i}"
-                        onclick="editarDatoManual(${i})"
+                        id="celdaManual_${fila.index}"
+                        onclick="editarDatoManual(${fila.index})"
                         style="
                             padding: 8px; 
                             background: #f9fafb; 
@@ -524,7 +566,7 @@ function actualizarTablaComparacion() {
         // Columna diferencia
         let celdaDiferencia = '';
         if (datoManual && datoManual.valor !== null && datoMasivo) {
-            const diferencia = datoManual.valor - datoMasivo.valor;
+            const diferencia = diff;
             const porcentajeDiferencia = datoMasivo.valor !== 0 
                 ? ((diferencia / datoMasivo.valor) * 100).toFixed(2)
                 : 'N/A';
@@ -579,6 +621,23 @@ function actualizarTablaComparacion() {
     }
     
     tbody.innerHTML = html;
+}
+
+/**
+ * Función para ordenar la tabla de comparación por diferencia
+ */
+function ordenarTablaComparacionPorDiferencia() {
+    // Alternar el orden
+    ordenDiferenciaAscendente = !ordenDiferenciaAscendente;
+
+    // Actualizar el icono
+    const icon = document.getElementById('ordenDiferenciaIcon');
+    if (icon) {
+        icon.textContent = ordenDiferenciaAscendente ? '⬆️' : '⬇️';
+    }
+
+    // Re-actualizar la tabla (que ahora ordenará internamente)
+    actualizarTablaComparacion();
 }
 
 /**

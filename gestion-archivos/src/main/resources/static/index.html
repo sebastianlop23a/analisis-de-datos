@@ -291,13 +291,13 @@
                             <label>Seleccionar modelo (opcional)</label>
                             <div id="ensayoModelButtons" style="display:flex;gap:8px;align-items:center;">
                                 <button type="button" class="btn btn-light model-btn" data-model="LINEAR">
-                                    <img src="/static/img/linear.png" alt="LINEAR" style="height:28px;vertical-align:middle;margin-right:6px;"> y = m x + b
+                                    <img src="/img/linear.png" alt="LINEAR" style="height:28px;vertical-align:middle;margin-right:6px;"> y = m x + b
                                 </button>
                                 <button type="button" class="btn btn-light model-btn" data-model="QUADRATIC">
-                                    <img src="/static/img/quadratic.png" alt="QUADRATIC" style="height:28px;vertical-align:middle;margin-right:6px;"> y = a*x^2 + b*x + c
+                                    <img src="/img/quadratic.png" alt="QUADRATIC" style="height:28px;vertical-align:middle;margin-right:6px;"> y = a*x^2 + b*x + c
                                 </button>
                                 <button type="button" class="btn btn-light model-btn" data-model="CUBIC">
-                                    <img src="/static/img/cubic.png" alt="CUBIC" style="height:28px;vertical-align:middle;margin-right:6px;"> y = a*x^3 + b*x^2 + c*x + d
+                                    <img src="/img/cubic.png" alt="CUBIC" style="height:28px;vertical-align:middle;margin-right:6px;"> y = a*x^3 + b*x^2 + c*x + d
                                 </button>
                                 <span id="ensayoModelSelected" style="margin-left:12px;color:#333;font-weight:600;">Ninguno</span>
                             </div>
@@ -452,6 +452,23 @@
                 <div id="analisisLogtags" class="items-list">
                     <p class="loading">Selecciona un ensayo para ver documentos Logtag asociados</p>
                 </div>
+            </div>
+
+            <div class="form-section" style="border: 1px solid rgba(41, 128, 185, 0.15); background: rgba(52, 152, 219, 0.05); border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+                <h2>Analizar parte del ensayo</h2>
+                <div class="form-row" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1 1 220px;">
+                        <label for="filtroAnalisisInicio">Inicio</label>
+                        <input type="datetime-local" id="filtroAnalisisInicio" style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;" />
+                    </div>
+                    <div class="form-group" style="flex: 1 1 220px;">
+                        <label for="filtroAnalisisFin">Fin</label>
+                        <input type="datetime-local" id="filtroAnalisisFin" style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;" />
+                    </div>
+                    <button onclick="aplicarFiltroAnalisisParcial()" class="btn btn-primary" style="padding: 10px 18px;">Aplicar análisis parcial</button>
+                    <button onclick="limpiarFiltroAnalisisParcial()" class="btn btn-secondary" style="padding: 10px 18px;">Restaurar análisis completo</button>
+                </div>
+                <p id="analisisParteTexto" style="margin-top: 10px; color: #34495e; font-size: 14px;">Selecciona un rango de fecha y hora para analizar sólo esa parte del ensayo.</p>
             </div>
 
             <div class="section-row">
@@ -627,6 +644,28 @@
                         <div id="selectoresSensores" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px;">
                             <p style="color: #888; font-style: italic;">🔄 Cargando sensores...</p>
                         </div>
+
+                        <div style="margin-top: 18px; padding: 14px; border: 1px solid rgba(149, 165, 166, 0.2); border-radius: 10px; background: rgba(236, 240, 241, 0.7);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <strong style="font-size: 15px;">🚫 Excluir Sensores</strong>
+                            </div>
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                                <div style="flex: 1 1 320px; min-width: 200px;">
+                                    <label for="excluirSensoresSelect" style="font-weight: 500; color: #555; display: block; margin-bottom: 6px;">Selecciona sensores a excluir</label>
+                                    <select id="excluirSensoresSelect" multiple style="width: 100%; min-height: 120px; padding: 10px; border: 1px solid #bdc3c7; border-radius: 8px; background: #fff; font-size: 14px;">
+                                    </select>
+                                </div>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button onclick="aplicarExclusionSensores()" class="btn btn-sm" style="padding: 8px 16px; font-size: 13px; background: #e67e22; border: none; color: white;">
+                                        Aplicar exclusión
+                                    </button>
+                                    <button onclick="limpiarExclusionSensores()" class="btn btn-sm" style="padding: 8px 16px; font-size: 13px; background: #95a5a6; border: none; color: white;">
+                                        Limpiar exclusión
+                                    </button>
+                                </div>
+                            </div>
+                            <p style="margin-top: 10px; color: #555; font-size: 13px;">Los sensores excluidos se quitarán del análisis y de todas las gráficas.</p>
+                        </div>
                     </div>
                 </div>
                 <div id="graficasSensores">
@@ -635,10 +674,8 @@
             </div>
 
             <!-- Comparación de Datos: Manual vs Masivo -->
-
-
-                <div style="overflow-x: auto;">
-                    <table id="tablaComparacion" class="table" style="width: 100%; border-collapse: collapse;">
+            <div style="overflow-x: auto;">
+                <table id="tablaComparacion" class="table" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: #f8f9fa;">
                                 <th style="padding: 12px; text-align: center; border: 1px solid #ddd; width: 33.33%; background: rgba(52, 211, 153, 0.1); font-weight: 600; color: #27ae60;">
@@ -665,18 +702,17 @@
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
-                </div>
+                </table>
+            </div>
 
-                <div style="margin-top: 15px; padding: 12px; background: #f0f8ff; border-radius: 4px; border-left: 4px solid #3498db; font-size: 13px; color: #555;">
-                    💡 <strong>Cómo usar:</strong> 
-                    <ol style="margin: 8px 0; padding-left: 20px;">
-                        <li>Filtra los datos en la tabla "Datos Registrados" usando los controles de hora y sensor</li>
-                        <li>Selecciona los datos que quieres comparar marcando los checkboxes</li>
-                        <li>Haz clic en "Copiar Seleccionados a Comparación"</li>
-                        <li>Edita los datos manuales haciendo clic en las celdas verdes</li>
-                    </ol>
-                </div>
+            <div style="margin-top: 15px; padding: 12px; background: #f0f8ff; border-radius: 4px; border-left: 4px solid #3498db; font-size: 13px; color: #555;">
+                💡 <strong>Cómo usar:</strong> 
+                <ol style="margin: 8px 0; padding-left: 20px;">
+                    <li>Filtra los datos en la tabla "Datos Registrados" usando los controles de hora y sensor</li>
+                    <li>Selecciona los datos que quieres comparar marcando los checkboxes</li>
+                    <li>Haz clic en "Copiar Seleccionados a Comparación"</li>
+                    <li>Edita los datos manuales haciendo clic en las celdas verdes</li>
+                </ol>
             </div>
 
             <div class="table-section">
@@ -690,6 +726,7 @@
                             <label for="filtroHoraInicio" style="font-weight: 500; color: #555;">Fecha y hora inicio:</label>
                             <input type="datetime-local" id="filtroHoraInicio" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                         </div>
+                        
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label for="filtroHoraFin" style="font-weight: 500; color: #555;">Fecha y hora fin:</label>
                             <input type="datetime-local" id="filtroHoraFin" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
@@ -708,21 +745,7 @@
                         💡 Selecciona hora y sensor para filtrar datos. Ejemplo: 11:20-12:30 + Sensor específico.
                     </div>
                 </div>
-                
-                <table id="tablaDatos" class="table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px;">
-                                <input type="checkbox" id="checkAllDatos" onchange="seleccionarTodosDatosTabla()" style="width: 16px; height: 16px; cursor: pointer;">
-                            </th>
-                            <th>#</th>
-                            <th>Timestamp</th>
-                            <th>Sensor</th>
-                            <th>Valor</th>
-                            <th>Anormal</th>
-                            <th>Fuente</th>
-                             <!-- Botones para copiar datos seleccionados a comparación -->
-                <div style="margin-top: 15px; padding: 12px; background: rgba(39, 174, 96, 0.08); border-radius: 6px; border: 1px solid rgba(39, 174, 96, 0.2);">
+                 <div style="margin-top: 15px; padding: 12px; background: rgba(39, 174, 96, 0.08); border-radius: 6px; border: 1px solid rgba(39, 174, 96, 0.2);">
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <button onclick="copiarSeleccionadosATablaComparacion()" class="btn btn-success" style="padding: 8px 16px; font-size: 14px;">
                             📋 Copiar Seleccionados de la Tabla
@@ -738,6 +761,19 @@
                         💡 Selecciona los datos que quieres comparar en la tabla de registros y luego haz clic en "Copiar Seleccionados de la Tabla"
                     </div>
                 </div>
+                
+                <table id="tablaDatos" class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="checkAllDatos" onchange="seleccionarTodosDatosTabla()" style="width: 16px; height: 16px; cursor: pointer;">
+                            </th>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Sensor</th>
+                            <th>Valor</th>
+                            <th>Anormal</th>
+                            <th>Fuente</th>
                         </tr>
                     </thead>
                     <tbody id="tablaDatosBody">
@@ -745,6 +781,7 @@
                     </tbody>
                 </table>
                 
+                <!-- Botones para copiar datos seleccionados a comparación -->
                
             </div>
         </section>

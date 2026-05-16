@@ -1,97 +1,23 @@
 // ====================================
-// APLICACIÓN PRINCIPAL
-// ====================================
+let graficasSensoresData = null;
+let chartsSensoresIndividuales = [];
+let sensoresDisponibles = [];
+let sensoresSeleccionados = new Set();
+let sensoresExcluidos = new Set();
+let datosAnalisisOriginales = [];
+let datosFiltradosActuales = null;
+let ultimoAnalisisFH = null;
 
-console.log('🔄 CARGANDO app.js - Versión:', new Date().toISOString());
-
-// Variables globales
+// Variables globales para gráficos principales
 let chartEstados = null;
 let chartMaquinas = null;
+let chartActividad = null;
+let chartRendimiento = null;
 let chartDatos = null;
 let chartAnormales = null;
 let chartBoxplot = null;
 let chartCuartiles = null;
 let chartTemporal = null;
-let chartActividad = null;
-let chartRendimiento = null;
-let maquinasCache = [];
-let ensayosCache = [];
-let reportesCache = [];
-let sensoresCache = [];
-let datosFiltradosActuales = null; // Almacena datos filtrados cuando se aplica filtro
-let datosTablaActual = []; // Datos actualmente mostrados en la tabla de registros
-window.datosFiltradosActuales = datosFiltradosActuales;
-window.datosTablaActual = datosTablaActual;
-
-// Estados de filtros individuales por gráfica
-let filtrosGraficas = {
-    distribucion: null,
-    anormales: null,
-    boxplot: null,
-    cuartiles: null,
-    temporal: null
-};
-let reportesSinFiltrar = []; // Para filtrado por fecha
-let datosAnalisisOriginales = []; // Para filtrado de datos por fecha/hora
-
-// ====================================
-// INICIALIZACIÓN
-// ====================================
-
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Iniciando aplicación...');
-
-    // Setup event listeners
-    setupNavigationListeners();
-    setupFormListeners();
-
-    // Cargar datos iniciales
-    await inicializarApp();
-
-    // Auto-actualizar datos cada 5 segundos (usamos bucle adaptativo)
-    startPolling();
-});
-
-// Polling adaptativo: evita llamadas en bucle cuando la pestaña no está visible
-let pollingActive = true;
-let pollingBackoff = 1;
-
-function startPolling() {
-    pollingActive = true;
-    (async function pollLoop() {
-        while (pollingActive) {
-            try {
-                // Solo ejecutar si la pestaña está visible
-                if (document.visibilityState === 'visible') {
-                    await actualizarDatos();
-                    // reset backoff en caso de éxito
-                    pollingBackoff = 1;
-                }
-            } catch (err) {
-                console.error('Error en polling:', err);
-                // aumentar backoff hasta 8x
-                pollingBackoff = Math.min(pollingBackoff * 2, 8);
-            }
-
-            // esperar antes del siguiente intento (con backoff)
-            const delay = DELAYS.API_POLL * pollingBackoff;
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-    })();
-}
-
-function stopPolling() {
-    pollingActive = false;
-}
-
-// Pausar polling cuando la pestaña esté oculta para evitar trafico innecesario
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        console.log('Pestaña oculta: pausando polling');
-    } else {
-        console.log('Pestaña visible: reanudando polling');
-    }
-});
 
 async function inicializarApp() {
     try {
@@ -809,6 +735,11 @@ async function cargarAnalisis() {
             return;
         }
 
+        ultimoAnalisisFH = {
+            factorHistorico: analisis.factorHistorico,
+            parametroZ: analisis.parametroZ
+        };
+
         // Actualizar tarjetas de estadísticas básicas
         document.getElementById('statTotal').textContent = analisis.totalDatos || 0;
         document.getElementById('statMedia').textContent = (analisis.media || 0).toFixed(2);
@@ -827,10 +758,13 @@ async function cargarAnalisis() {
         console.log('Datos temporales obtenidos:', datosTemporales ? datosTemporales.length : 0);
         
         if (datosTemporales && datosTemporales.length > 0) {
-            // Guardar datos originales para filtrado
-            datosAnalisisOriginales = [...datosTemporales];
+            const sensoresValidos = obtenerSensoresConDatos(datosTemporales);
+            const datosFiltradosPorSensores = datosTemporales.filter(d => sensoresValidos.includes(d.sensor || 'Sin Sensor'));
+
+            // Guardar datos originales para filtrado, omitiendo sensores cuyos valores son todos cero
+            datosAnalisisOriginales = [...datosFiltradosPorSensores];
             
-            const valoresOrdenados = datosTemporales.map(d => d.valor).sort((a, b) => a - b);
+            const valoresOrdenados = datosAnalisisOriginales.map(d => d.valor).sort((a, b) => a - b);
             const q1 = calcularCuartil(valoresOrdenados, 0.25);
             const q2 = calcularCuartil(valoresOrdenados, 0.50);
             const q3 = calcularCuartil(valoresOrdenados, 0.75);
@@ -849,27 +783,28 @@ async function cargarAnalisis() {
             }
 
             // Gráfico de distribución
-            crearGraficoDistribucion(datosTemporales, analisis.media);
+            const datosActivos = obtenerDatosAnalisisActivos();
+            crearGraficoDistribucion(datosActivos, calcularAnalisis(datosActivos).media);
 
             // Gráfico de anormales
-            crearGraficoAnormales(datosTemporales);
+            crearGraficoAnormales(datosActivos);
 
             // Nuevas gráficas
-            crearGraficoBoxplot(datosTemporales, analisis);
-            crearGraficoCuartiles(analisis);
-            crearGraficoTemporal(datosTemporales);
+            crearGraficoBoxplot(datosActivos, calcularAnalisis(datosActivos));
+            crearGraficoCuartiles(calcularAnalisis(datosActivos));
+            crearGraficoTemporal(datosActivos);
 
             // Análisis por sensor
-            crearAnalisisPorSensor(datosTemporales, analisis.media);
+            crearAnalisisPorSensor(datosActivos, calcularAnalisis(datosActivos).media);
 
                 // Cargar documentos Logtag asociados al ensayo y mostrarlos en la sección de Análisis
                 await cargarLogtagsEnsayo(parseInt(ensayoId));
 
             // Crear gráficas por sensor
-            crearGraficasPorSensor(datosTemporales);
+            crearGraficasPorSensor(datosAnalisisOriginales);
 
             // Tabla de datos
-            llenarTablaDatos(datosAnalisisOriginales);
+            llenarTablaDatos(obtenerDatosAnalisisActivos());
             
             // Mostrar estado de filtro al cargar por primera vez
             actualizarFiltroActivoTexto(null, null, '');
@@ -963,19 +898,35 @@ async function onAnalisisDocumentoChange() {
             return;
         }
 
-        // Actualizar gráficas usando sólo los datos del documento
-        const valoresOrdenados = datos.map(d => d.valor).sort((a, b) => a - b);
+        const sensoresValidos = obtenerSensoresConDatos(datos);
+        const datosFiltrados = datos.filter(d => sensoresValidos.includes(d.sensor || 'Sin Sensor'));
+
+        if (!datosFiltrados || datosFiltrados.length === 0) {
+            showToast('No hay datos útiles para analizar en este documento', 'warning');
+            return;
+        }
+
+        datosAnalisisOriginales = [...datosFiltrados];
+
+        // Aplicar selección actual de sensores a los datos del documento
+        const datosVisibles = filtrarDatosPorSensoresSeleccionados(datosAnalisisOriginales);
+        if (datosVisibles.length === 0) {
+            showToast('Todos los sensores fueron excluidos del análisis', 'warning');
+            return;
+        }
+
+        // Actualizar gráficas usando sólo los datos útiles y seleccionados del documento
+        const valoresOrdenados = datosVisibles.map(d => d.valor).sort((a, b) => a - b);
         const q1 = calcularCuartil(valoresOrdenados, 0.25);
         const q2 = calcularCuartil(valoresOrdenados, 0.50);
         const q3 = calcularCuartil(valoresOrdenados, 0.75);
 
-        document.getElementById('statTotal').textContent = datos.length;
-        document.getElementById('statMedia').textContent = (datos.reduce((s,d)=>s+d.valor,0)/datos.length).toFixed(2);
-        document.getElementById('statDesv').textContent = ( (function(){
-            const mean = datos.reduce((s,d)=>s+d.valor,0)/datos.length;
-            const v = Math.sqrt(datos.reduce((s,d)=>s+Math.pow(d.valor-mean,2),0)/datos.length);
-            return v;
-        })()).toFixed(2);
+        const media = datosVisibles.reduce((s, d) => s + d.valor, 0) / datosVisibles.length;
+        const desviacion = Math.sqrt(datosVisibles.reduce((s, d) => s + Math.pow(d.valor - media, 2), 0) / datosVisibles.length);
+
+        document.getElementById('statTotal').textContent = datosVisibles.length;
+        document.getElementById('statMedia').textContent = media.toFixed(2);
+        document.getElementById('statDesv').textContent = desviacion.toFixed(2);
         document.getElementById('statMax').textContent = Math.max(...valoresOrdenados).toFixed(2);
         document.getElementById('statMin').textContent = Math.min(...valoresOrdenados).toFixed(2);
 
@@ -983,14 +934,14 @@ async function onAnalisisDocumentoChange() {
         document.getElementById('statQ2').textContent = q2.toFixed(2);
         document.getElementById('statQ3').textContent = q3.toFixed(2);
 
-        crearGraficoDistribucion(datos, parseFloat(document.getElementById('statMedia').textContent) || 0);
-        crearGraficoAnormales(datos);
-        crearGraficoBoxplot(datos, { q1, mediana: q2, q3, minimo: Math.min(...valoresOrdenados), maximo: Math.max(...valoresOrdenados), media: parseFloat(document.getElementById('statMedia').textContent) });
-        crearGraficoCuartiles({ q1, q3, media: parseFloat(document.getElementById('statMedia').textContent), maximo: Math.max(...valoresOrdenados), minimo: Math.min(...valoresOrdenados) });
-        crearGraficoTemporal(datos);
-        crearAnalisisPorSensor(datos, parseFloat(document.getElementById('statMedia').textContent));
-        crearGraficasPorSensor(datos);
-        llenarTablaDatos(datos);
+        crearGraficoDistribucion(datosVisibles, media);
+        crearGraficoAnormales(datosVisibles);
+        crearGraficoBoxplot(datosVisibles, { q1, mediana: q2, q3, minimo: Math.min(...valoresOrdenados), maximo: Math.max(...valoresOrdenados), media });
+        crearGraficoCuartiles({ q1, q3, media, maximo: Math.max(...valoresOrdenados), minimo: Math.min(...valoresOrdenados) });
+        crearGraficoTemporal(datosVisibles);
+        crearAnalisisPorSensor(datosVisibles, media);
+        crearGraficasPorSensor(datosVisibles);
+        llenarTablaDatos(datosVisibles);
     } catch (e) {
         console.error('Error cargando datos por documento:', e);
         showToast('Error cargando datos del documento', 'error');
@@ -1355,10 +1306,14 @@ function crearGraficoTemporal(datos) {
 function crearAnalisisPorSensor(datos, mediaGeneral) {
     const container = document.getElementById('analisisSensores');
     
-    // Agrupar datos por sensor
+    // Agrupar datos por sensor, omitiendo aquellos que tienen todos sus valores en cero
+    const sensoresValidos = obtenerSensoresConDatos(datos);
     const datosPorSensor = {};
     datos.forEach(d => {
         const sensor = d.sensor || 'Sin Sensor';
+        if (!sensoresValidos.includes(sensor)) {
+            return;
+        }
         if (!datosPorSensor[sensor]) {
             datosPorSensor[sensor] = [];
         }
@@ -1461,27 +1416,145 @@ function crearAnalisisPorSensor(datos, mediaGeneral) {
     container.innerHTML = html;
 }
 
-// Variables globales para las gráficas de sensores
-let graficasSensoresData = null;
-let chartsSensoresIndividuales = [];
-let sensoresDisponibles = [];
-let sensoresSeleccionados = new Set();
+function obtenerNombreSensorBase(sensor) {
+    if (!sensor) return 'Sin Sensor';
+    const texto = String(sensor).trim();
+    const match = texto.match(/^(.*?)(?:[_\s-]*(?:hr|hum|humidity|humedad))$/i);
+    return match && match[1] ? match[1].trim() : texto;
+}
+
+function esSensorHumedad(sensor) {
+    if (!sensor) return false;
+    return /(?:^|[_\s-])(hr|hum|humidity|humedad)$/i.test(String(sensor).trim());
+}
+
+function agruparDatosPorSensorBase(datos) {
+    const grupos = {};
+    datos.forEach(d => {
+        const sensor = d.sensor || 'Sin Sensor';
+        const baseSensor = obtenerNombreSensorBase(sensor);
+        if (!grupos[baseSensor]) {
+            grupos[baseSensor] = {
+                baseSensor,
+                sensores: [],
+                datosPorSensor: {}
+            };
+        }
+        if (!grupos[baseSensor].datosPorSensor[sensor]) {
+            grupos[baseSensor].datosPorSensor[sensor] = [];
+        }
+        grupos[baseSensor].datosPorSensor[sensor].push(d);
+        if (!grupos[baseSensor].sensores.includes(sensor)) {
+            grupos[baseSensor].sensores.push(sensor);
+        }
+    });
+    return grupos;
+}
+
+function construirDatosGraficaPorGrupo(grupo, filtro) {
+    const sensoresSeleccionadosEnGrupo = grupo.sensores.filter(sensor => sensoresSeleccionados.has(sensor));
+    const datosPorSensor = {};
+    const timestampsSet = new Set();
+
+    sensoresSeleccionadosEnGrupo.forEach(sensor => {
+        let datosSensor = grupo.datosPorSensor[sensor] || [];
+        if (filtro) {
+            datosSensor = filtrarDatosPorHora(datosSensor, filtro.inicio, filtro.fin);
+        }
+        datosSensor = datosSensor.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        datosPorSensor[sensor] = datosSensor;
+        datosSensor.forEach(d => timestampsSet.add(d.timestamp));
+    });
+
+    const timestamps = [...timestampsSet].sort((a, b) => new Date(a) - new Date(b));
+    const labels = timestamps.map(formatDate);
+    const colores = CONFIG.chartColors;
+
+    const datasets = sensoresSeleccionadosEnGrupo.map((sensor, index) => {
+        const datosSensor = datosPorSensor[sensor] || [];
+        const valoresPorTimestamp = new Map(datosSensor.map(d => [d.timestamp, d.valor]));
+        const data = timestamps.map(ts => valoresPorTimestamp.has(ts) ? valoresPorTimestamp.get(ts) : null);
+        const esHumedad = esSensorHumedad(sensor);
+        const tipo = esHumedad ? 'Humedad' : 'Temperatura';
+        const label = sensoresSeleccionadosEnGrupo.length > 1
+            ? `${tipo} (${sensor})`
+            : tipo;
+        const color = colores[index % colores.length];
+
+        return {
+            label,
+            data,
+            borderColor: color,
+            backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: false,
+            yAxisID: esHumedad ? 'yHumedad' : 'yTemperatura'
+        };
+    });
+
+    return {
+        labels,
+        datasets
+    };
+}
+
+function parseNumericValue(valor) {
+    if (valor === null || valor === undefined) return NaN;
+    if (typeof valor === 'number') return valor;
+    const texto = String(valor).trim().replace(',', '.');
+    return Number(texto);
+}
+
+function obtenerSensoresConDatos(datos) {
+    const resumen = {};
+
+    datos.forEach(d => {
+        const sensor = String(d.sensor || 'Sin Sensor').trim();
+        if (!resumen[sensor]) {
+            resumen[sensor] = { total: 0, ceros: 0 };
+        }
+        resumen[sensor].total += 1;
+        const valor = parseNumericValue(d.valor);
+        if (valor === 0) {
+            resumen[sensor].ceros += 1;
+        }
+    });
+
+    return Object.keys(resumen)
+        .filter(sensor => resumen[sensor].ceros < resumen[sensor].total)
+        .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+}
 
 function crearSelectoresSensores(datos) {
-    const sensores = [...new Set(datos.map(d => d.sensor).filter(s => s))];
-    sensoresDisponibles = sensores;
-    
-    // Por defecto, seleccionar todos los sensores
-    if (sensoresSeleccionados.size === 0) {
-        sensores.forEach(s => sensoresSeleccionados.add(s));
+    const sensores = obtenerSensoresConDatos(datos);
+    const sensoresPrevios = sensoresDisponibles;
+    const sensoresAutorizados = sensores.filter(s => !sensoresExcluidos.has(s));
+    sensoresDisponibles = sensoresAutorizados;
+
+    // Eliminar sensores seleccionados que ya no estén disponibles o estén excluidos
+    sensoresSeleccionados = new Set([...sensoresSeleccionados].filter(s => sensoresAutorizados.includes(s)));
+
+    // Seleccionar todos solo en la primera carga, no cuando el usuario ya vació la selección
+    if (sensoresSeleccionados.size === 0 && sensoresPrevios.length === 0 && sensoresAutorizados.length > 0) {
+        sensoresAutorizados.forEach(s => sensoresSeleccionados.add(s));
     }
+
+    poblarSelectorSensoresExclusion(datos);
     
     const container = document.getElementById('selectoresSensores');
     if (!container) return;
+
+    if (sensoresAutorizados.length === 0) {
+        container.innerHTML = '<p class="loading">No hay sensores autorizados para analizar.</p>';
+        return;
+    }
     
     const colores = CONFIG.chartColors;
     
-    container.innerHTML = sensores.map((sensor, index) => {
+    container.innerHTML = sensoresAutorizados.map((sensor, index) => {
         const color = colores[index % colores.length];
         const isChecked = sensoresSeleccionados.has(sensor);
         
@@ -1524,6 +1597,7 @@ function seleccionarTodosSensores() {
     if (graficasSensoresData) {
         crearGraficasPorSensor(graficasSensoresData);
     }
+    aplicarFiltroSensoresSeleccionados();
 }
 
 function deseleccionarTodosSensores() {
@@ -1532,6 +1606,7 @@ function deseleccionarTodosSensores() {
     if (graficasSensoresData) {
         crearGraficasPorSensor(graficasSensoresData);
     }
+    aplicarFiltroSensoresSeleccionados();
 }
 
 function toggleSensor(sensor) {
@@ -1541,28 +1616,38 @@ function toggleSensor(sensor) {
         sensoresSeleccionados.add(sensor);
     }
     
-    // Regenerar gráficas con los sensores seleccionados
+    // Regenerar gráficas y análisis con los sensores seleccionados
     if (graficasSensoresData) {
         crearGraficasPorSensor(graficasSensoresData);
     }
+    aplicarFiltroSensoresSeleccionados();
 }
 
 function crearGraficasPorSensor(datos) {
-    console.log('crearGraficasPorSensor llamada con', datos.length, 'datos');
-    graficasSensoresData = datos;
-    
-    // Crear selectores si no existen
-    if (sensoresDisponibles.length === 0) {
-        crearSelectoresSensores(datos);
+    const datosFuente = datos && datos.length ? datos : obtenerDatosAnalisisActivos();
+    // Refrescar los selectores de sensores antes de filtrar los datos activos
+    crearSelectoresSensores(datosFuente);
+
+    let datosActivos = filtrarDatosPorSensoresSeleccionados(datosFuente);
+    if (!datosActivos || datosActivos.length === 0) {
+        datosActivos = datosFuente;
     }
+
+    console.log('crearGraficasPorSensor llamada con', datosActivos.length, 'datos');
+    const sensoresValidos = obtenerSensoresConDatos(datosActivos);
+    const datosFiltrados = datosActivos.filter(d => sensoresValidos.includes(String(d.sensor || 'Sin Sensor').trim()));
+    graficasSensoresData = datosFiltrados;
+    
+    // Refrescar los selectores de sensores con los sensores válidos
+    crearSelectoresSensores(datosFiltrados);
     
     const checkbox = document.getElementById('modoComparacion');
     const modoComparacion = checkbox ? checkbox.checked : false;
     
     if (modoComparacion) {
-        crearGraficaComparacion(datos);
+        crearGraficaComparacion(datosFiltrados);
     } else {
-        crearGraficasIndividuales(datos);
+        crearGraficasIndividuales(datosFiltrados);
     }
 }
 
@@ -1574,7 +1659,7 @@ function crearGraficasIndividuales(datos) {
         return;
     }
     
-    console.log('Creando gráficas individuales...');
+    console.log('Creando gráficas individuales agrupadas por serial...');
     
     // Limpiar gráficas anteriores
     chartsSensoresIndividuales.forEach(chart => {
@@ -1586,23 +1671,14 @@ function crearGraficasIndividuales(datos) {
     });
     chartsSensoresIndividuales = [];
     
-    // Agrupar datos por sensor
-    const datosPorSensor = {};
-    datos.forEach(d => {
-        const sensor = d.sensor || 'Sin Sensor';
-        if (!datosPorSensor[sensor]) {
-            datosPorSensor[sensor] = [];
-        }
-        datosPorSensor[sensor].push(d);
-    });
+    const gruposPorSensor = agruparDatosPorSensorBase(datos);
+    const gruposSeleccionados = Object.values(gruposPorSensor).filter(grupo => 
+        grupo.sensores.some(sensor => sensoresSeleccionados.has(sensor))
+    );
     
-    // Filtrar solo los sensores seleccionados
-    const todosLosSensores = Object.keys(datosPorSensor);
-    const sensores = todosLosSensores.filter(s => sensoresSeleccionados.has(s));
+    console.log('Grupos encontrados:', gruposSeleccionados.length, gruposSeleccionados.map(g => g.baseSensor));
     
-    console.log('Sensores encontrados:', sensores.length, sensores);
-    
-    if (sensores.length === 0) {
+    if (gruposSeleccionados.length === 0) {
         container.innerHTML = `
             <div style="padding: 40px; text-align: center; background: rgba(231, 76, 60, 0.1); border-radius: 12px; border: 2px dashed rgba(231, 76, 60, 0.3);">
                 <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
@@ -1614,19 +1690,19 @@ function crearGraficasIndividuales(datos) {
     }
     
     let html = '';
-    sensores.forEach((sensor, index) => {
+    gruposSeleccionados.forEach((grupo, index) => {
         html += `
             <div class="chart-container" style="margin-bottom: 20px; position: relative;">
                 <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <h4 style="color: var(--color-dark); margin: 0;">
-                        📊 Sensor: <code>${sensor}</code>
+                        📊 Serial: <code>${grupo.baseSensor}</code>
                     </h4>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <div class="chart-filter">
                             <input type="datetime-local" id="filtroInicioSensor${index}" class="filter-time" placeholder="Inicio">
                             <input type="datetime-local" id="filtroFinSensor${index}" class="filter-time" placeholder="Fin">
-                            <button onclick="filtrarGraficaSensor('${sensor}', ${index})" class="btn-filter">Filtrar</button>
-                            <button onclick="limpiarFiltroSensor('${sensor}', ${index})" class="btn-filter" style="background: #e74c3c;">✕</button>
+                            <button onclick="filtrarGraficaSensor('${grupo.baseSensor}', ${index})" class="btn-filter">Filtrar</button>
+                            <button onclick="limpiarFiltroSensor('${grupo.baseSensor}', ${index})" class="btn-filter" style="background: #e74c3c;">✕</button>
                         </div>
                         <button onclick="resetZoom(${index})" class="btn btn-sm" style="padding: 5px 12px; font-size: 12px; background: #95a5a6;">
                             🔄 Restablecer Zoom
@@ -1645,40 +1721,20 @@ function crearGraficasIndividuales(datos) {
     
     console.log('HTML insertado, creando gráficas...');
     
-    // Esperar un momento para que el DOM se actualice
     setTimeout(() => {
-        // Crear una gráfica para cada sensor
-        sensores.forEach((sensor, index) => {
-            const datosSensor = datosPorSensor[sensor].sort((a, b) => 
-                new Date(a.timestamp) - new Date(b.timestamp)
-            );
-            
-            console.log(`Creando gráfica para sensor ${sensor} con ${datosSensor.length} datos`);
-            
+        gruposSeleccionados.forEach((grupo, index) => {
+            const chartData = construirDatosGraficaPorGrupo(grupo, filtrosGraficas.sensores && filtrosGraficas.sensores[grupo.baseSensor] ? filtrosGraficas.sensores[grupo.baseSensor] : null);
             const ctx = document.getElementById(`chartSensor${index}`);
             if (!ctx) {
                 console.error(`Canvas chartSensor${index} no encontrado`);
                 return;
             }
             
-            const colores = CONFIG.chartColors;
-            const colorPrincipal = colores[index % colores.length];
-            
             const chart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: datosSensor.map(d => formatDate(d.timestamp)),
-                    datasets: [{
-                        label: sensor,
-                        data: datosSensor.map(d => d.valor),
-                        borderColor: colorPrincipal,
-                        backgroundColor: colorPrincipal.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        tension: 0.3,
-                        fill: true
-                    }]
+                    labels: chartData.labels,
+                    datasets: chartData.datasets
                 },
                 options: {
                     responsive: true,
@@ -1695,7 +1751,7 @@ function crearGraficasIndividuales(datos) {
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(4)}`;
+                                    return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(4) : 'N/A'}`;
                                 }
                             }
                         },
@@ -1728,13 +1784,6 @@ function crearGraficasIndividuales(datos) {
                         }
                     },
                     scales: {
-                        y: {
-                            beginAtZero: false,
-                            title: {
-                                display: true,
-                                text: 'Valor'
-                            }
-                        },
                         x: {
                             title: {
                                 display: true,
@@ -1744,15 +1793,36 @@ function crearGraficasIndividuales(datos) {
                                 maxRotation: 45,
                                 minRotation: 45
                             }
+                        },
+                        yTemperatura: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Temperatura (°C)'
+                            }
+                        },
+                        yHumedad: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Humedad (%)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
                         }
                     }
                 }
             });
             
-            console.log(`Gráfica creada para sensor ${sensor}`);
+            console.log(`Gráfica creada para serial ${grupo.baseSensor}`);
             chartsSensoresIndividuales.push(chart);
         });
-    }, 100); // Esperar 100ms para que el DOM se actualice
+    }, 100);
 }
 
 function resetZoom(index) {
@@ -3395,7 +3465,7 @@ function agregarLog(mensaje) {
 }
 
 // Setup form listener para configuración
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const formConfig = document.getElementById('formConfiguracion');
     if (formConfig) {
         formConfig.addEventListener('submit', guardarConfiguracion);
@@ -3406,6 +3476,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Cargar ensayos para verificación de FH
     cargarEnsayosParaFH();
+
+    // Inicializar navegación, formularios y datos de la aplicación
+    try {
+        setupNavigationListeners();
+        setupFormListeners();
+        await inicializarApp();
+        console.log('App inicializada correctamente');
+    } catch (error) {
+        console.error('Error inicializando la aplicación:', error);
+        showToast('Error al inicializar la aplicación', 'error');
+    }
 });
 
 // Cargar ensayos en el select de verificación FH
@@ -3458,9 +3539,12 @@ async function verificarFH() {
             return;
         }
         
-        // Obtener datos del reporte
-        const response = await fetch(`${API_BASE_URL}/reportes/${reporte.id}`);
-        const reporteCompleto = await response.json();
+        // Obtener datos del reporte por ensayo
+        const reporteCompleto = await obtenerReporte(ensayoId);
+        if (!reporteCompleto) {
+            showToast('No se pudo obtener el reporte completo', 'error');
+            return;
+        }
         
         const tieneFH = reporteCompleto.calculaFH === true || reporteCompleto.calculaFH === 'true';
         const factorHistorico = reporteCompleto.factorHistorico;
@@ -3571,12 +3655,13 @@ function aplicarFiltroHora() {
         return;
     }
     
-    if (datosAnalisisOriginales.length === 0) {
+    const datosBase = obtenerDatosAnalisisActivos();
+    if (datosBase.length === 0) {
         showToast('No hay datos para filtrar', 'warning');
         return;
     }
     
-    const datosFiltrados = datosAnalisisOriginales.filter(dato => {
+    const datosFiltrados = datosBase.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
         const cumpleHora = fechaDato >= fechaInicio && fechaDato <= fechaFin;
         const cumpleSensor = !sensorSeleccionado || dato.sensor === sensorSeleccionado;
@@ -3586,11 +3671,13 @@ function aplicarFiltroHora() {
     llenarTablaDatos(datosFiltrados);
     datosFiltradosActuales = datosFiltrados;
     window.datosFiltradosActuales = datosFiltrados;
+    actualizarEstadisticasAnalisis(datosFiltrados, false);
+    crearAnalisisPorSensor(datosFiltrados, calcularAnalisis(datosFiltrados).media);
     actualizarGraficasConFiltro();
     actualizarFiltroActivoTexto(horaInicioStr, horaFinStr, sensorSeleccionado);
     
     const filtroTexto = sensorSeleccionado ? ` + Sensor: ${sensorSeleccionado}` : '';
-    showToast(`Mostrando ${datosFiltrados.length} de ${datosAnalisisOriginales.length} registros${filtroTexto}`, 'info');
+    showToast(`Mostrando ${datosFiltrados.length} de ${datosBase.length} registros${filtroTexto}`, 'info');
 }
 
 function limpiarFiltroHora() {
@@ -3602,12 +3689,12 @@ function limpiarFiltroHora() {
     if (horaFinInput) horaFinInput.value = '';
     if (sensorSelect) sensorSelect.value = '';
     
-    // Mostrar todos los datos
-    llenarTablaDatos(datosAnalisisOriginales);
-    
     // Limpiar datos filtrados
     datosFiltradosActuales = null;
     window.datosFiltradosActuales = null;
+
+    const datosActivos = obtenerDatosAnalisisActivos();
+    llenarTablaDatos(datosActivos);
     
     // Resetear filtros individuales de gráficas
     filtrosGraficas = {
@@ -3622,11 +3709,95 @@ function limpiarFiltroHora() {
     // Limpiar inputs de filtros individuales
     document.querySelectorAll('.filter-time').forEach(input => input.value = '');
     
-    // Actualizar gráficas con todos los datos
+    actualizarEstadisticasAnalisis(datosActivos, true);
+    crearAnalisisPorSensor(datosActivos, calcularAnalisis(datosActivos).media);
+
+    // Actualizar gráficas con todos los datos activos
     actualizarGraficasConFiltro();
     actualizarFiltroActivoTexto(null, null, '');
     
     showToast('Filtro limpiado - mostrando todos los datos', 'info');
+}
+
+function aplicarFiltroAnalisisParcial() {
+    const inicio = document.getElementById('filtroAnalisisInicio');
+    const fin = document.getElementById('filtroAnalisisFin');
+    const textoResultado = document.getElementById('analisisParteTexto');
+
+    if (!inicio || !fin) {
+        showToast('Controles de filtro de análisis parcial no encontrados', 'error');
+        return;
+    }
+
+    const inicioStr = inicio.value;
+    const finStr = fin.value;
+
+    if (!inicioStr || !finStr) {
+        showToast('Por favor selecciona fecha y hora de inicio y fin para el análisis parcial', 'warning');
+        return;
+    }
+
+    const fechaInicio = parseDateTimeLocal(inicioStr);
+    const fechaFin = parseDateTimeLocal(finStr);
+    if (!fechaInicio || !fechaFin) {
+        showToast('Formato de fecha y hora no válido', 'warning');
+        return;
+    }
+
+    if (fechaInicio >= fechaFin) {
+        showToast('La fecha y hora de inicio debe ser anterior a la fecha y hora de fin', 'warning');
+        return;
+    }
+
+    const datosBase = obtenerDatosAnalisisActivos();
+    if (!datosBase || datosBase.length === 0) {
+        showToast('No hay datos cargados para filtrar', 'warning');
+        return;
+    }
+
+    const datosFiltrados = filtrarDatosPorHora(datosBase, inicioStr, finStr);
+    if (!datosFiltrados || datosFiltrados.length === 0) {
+        showToast('No se encontraron datos en el rango seleccionado', 'warning');
+        return;
+    }
+
+    datosFiltradosActuales = datosFiltrados;
+    window.datosFiltradosActuales = datosFiltrados;
+
+    llenarTablaDatos(datosFiltrados);
+    actualizarEstadisticasAnalisis(datosFiltrados, false);
+    crearAnalisisPorSensor(datosFiltrados, calcularAnalisis(datosFiltrados).media);
+    actualizarGraficasConFiltro();
+
+    if (textoResultado) {
+        textoResultado.textContent = `Analizando parte del ensayo: ${datosFiltrados.length} de ${datosAnalisisOriginales.length} registros`; 
+    }
+
+    showToast(`Análisis parcial aplicado: ${datosFiltrados.length} registros`, 'success');
+}
+
+function limpiarFiltroAnalisisParcial() {
+    const inicio = document.getElementById('filtroAnalisisInicio');
+    const fin = document.getElementById('filtroAnalisisFin');
+    const textoResultado = document.getElementById('analisisParteTexto');
+
+    if (inicio) inicio.value = '';
+    if (fin) fin.value = '';
+
+    datosFiltradosActuales = null;
+    window.datosFiltradosActuales = null;
+
+    const datosActivos = obtenerDatosAnalisisActivos();
+    llenarTablaDatos(datosActivos);
+    actualizarEstadisticasAnalisis(datosActivos, true);
+    crearAnalisisPorSensor(datosActivos, calcularAnalisis(datosActivos).media);
+    actualizarGraficasConFiltro();
+
+    if (textoResultado) {
+        textoResultado.textContent = 'Análisis completo restaurado.';
+    }
+
+    showToast('Análisis parcial restaurado al conjunto completo', 'success');
 }
 
 // Función auxiliar para convertir valor datetime-local a Date local
@@ -3732,25 +3903,21 @@ function actualizarGraficaSensor(sensor, index) {
         return;
     }
     
-    // Filtrar datos del sensor
-    let datosSensor = graficasSensoresData.filter(d => d.sensor === sensor);
-    
-    // Aplicar filtro individual si existe
-    if (filtrosGraficas.sensores && filtrosGraficas.sensores[sensor]) {
-        const filtro = filtrosGraficas.sensores[sensor];
-        datosSensor = filtrarDatosPorHora(datosSensor, filtro.inicio, filtro.fin);
+    const gruposPorSensor = agruparDatosPorSensorBase(graficasSensoresData);
+    const grupo = gruposPorSensor[sensor];
+    if (!grupo) {
+        console.warn(`No se encontró el grupo para sensor base ${sensor}`);
+        return;
     }
     
-    // Ordenar por timestamp
-    datosSensor.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const chartData = construirDatosGraficaPorGrupo(grupo, filtrosGraficas.sensores && filtrosGraficas.sensores[sensor] ? filtrosGraficas.sensores[sensor] : null);
     
-    // Actualizar gráfica
     if (chartsSensoresIndividuales[index]) {
-        chartsSensoresIndividuales[index].data.labels = datosSensor.map(d => formatDate(d.timestamp));
-        chartsSensoresIndividuales[index].data.datasets[0].data = datosSensor.map(d => d.valor);
+        chartsSensoresIndividuales[index].data.labels = chartData.labels;
+        chartsSensoresIndividuales[index].data.datasets = chartData.datasets;
         chartsSensoresIndividuales[index].update();
         
-        console.log(`📊 Gráfica del sensor ${sensor} actualizada con ${datosSensor.length} datos`);
+        console.log(`📊 Gráfica del serial ${sensor} actualizada con ${chartData.labels.length} puntos`);
     }
 }
 
@@ -3785,7 +3952,8 @@ function filtrarGraficaDistribucion() {
         return;
     }
     
-    const datosFiltrados = datosAnalisisOriginales.filter(dato => {
+    const datosBase = obtenerDatosAnalisisActivos();
+    const datosFiltrados = datosBase.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
         return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
@@ -3797,7 +3965,7 @@ function filtrarGraficaDistribucion() {
 
 function limpiarFiltroDistribucion() {
     filtrosGraficas.distribucion = null;
-    actualizarGraficaIndividual('distribucion', datosAnalisisOriginales);
+    actualizarGraficaIndividual('distribucion', obtenerDatosAnalisisActivos());
     showToast('Filtro de distribución limpiado', 'info');
 }
 
@@ -3832,7 +4000,8 @@ function filtrarGraficaAnormales() {
         return;
     }
     
-    const datosFiltrados = datosAnalisisOriginales.filter(dato => {
+    const datosBase = obtenerDatosAnalisisActivos();
+    const datosFiltrados = datosBase.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
         return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
@@ -3844,7 +4013,7 @@ function filtrarGraficaAnormales() {
 
 function limpiarFiltroAnormales() {
     filtrosGraficas.anormales = null;
-    actualizarGraficaIndividual('anormales', datosAnalisisOriginales);
+    actualizarGraficaIndividual('anormales', obtenerDatosAnalisisActivos());
     showToast('Filtro de anormales limpiado', 'info');
 }
 
@@ -4196,7 +4365,8 @@ function filtrarGraficaBoxplot() {
         return;
     }
     
-    const datosFiltrados = datosAnalisisOriginales.filter(dato => {
+    const datosBase = obtenerDatosAnalisisActivos();
+    const datosFiltrados = datosBase.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
         return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
@@ -4208,7 +4378,7 @@ function filtrarGraficaBoxplot() {
 
 function limpiarFiltroBoxplot() {
     filtrosGraficas.boxplot = null;
-    actualizarGraficaIndividual('boxplot', datosAnalisisOriginales);
+    actualizarGraficaIndividual('boxplot', obtenerDatosAnalisisActivos());
     showToast('Filtro de boxplot limpiado', 'info');
 }
 
@@ -4243,7 +4413,8 @@ function filtrarGraficaCuartiles() {
         return;
     }
     
-    const datosFiltrados = datosAnalisisOriginales.filter(dato => {
+    const datosBase = obtenerDatosAnalisisActivos();
+    const datosFiltrados = datosBase.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
         return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
@@ -4255,7 +4426,7 @@ function filtrarGraficaCuartiles() {
 
 function limpiarFiltroCuartiles() {
     filtrosGraficas.cuartiles = null;
-    actualizarGraficaIndividual('cuartiles', datosAnalisisOriginales);
+    actualizarGraficaIndividual('cuartiles', obtenerDatosAnalisisActivos());
     showToast('Filtro de cuartiles limpiado', 'info');
 }
 
@@ -4290,7 +4461,8 @@ function filtrarGraficaTemporal() {
         return;
     }
     
-    const datosFiltrados = datosAnalisisOriginales.filter(dato => {
+    const datosBase = obtenerDatosAnalisisActivos();
+    const datosFiltrados = datosBase.filter(dato => {
         const fechaDato = new Date(dato.timestamp);
         return fechaDato >= fechaInicio && fechaDato <= fechaFin;
     });
@@ -4302,7 +4474,7 @@ function filtrarGraficaTemporal() {
 
 function limpiarFiltroTemporal() {
     filtrosGraficas.temporal = null;
-    actualizarGraficaIndividual('temporal', datosAnalisisOriginales);
+    actualizarGraficaIndividual('temporal', obtenerDatosAnalisisActivos());
     showToast('Filtro temporal limpiado', 'info');
 }
 
@@ -4359,15 +4531,16 @@ function actualizarGraficasConFiltro() {
             return;
         }
         const filtro = filtrosGraficas[tipoGrafica];
+        const datosBase = obtenerDatosAnalisisActivos();
         const datosParaGrafica = filtro ? 
-            filtrarDatosPorHora(datosAnalisisOriginales, filtro.inicio, filtro.fin) : 
-            datosAnalisisOriginales;
+            filtrarDatosPorHora(datosBase, filtro.inicio, filtro.fin) : 
+            datosBase;
         
         actualizarGraficaIndividual(tipoGrafica, datosParaGrafica);
     });
     
     // Actualizar gráficas por sensor con el filtro general (si existe)
-    const datosParaSensores = datosFiltradosActuales || datosAnalisisOriginales;
+    const datosParaSensores = obtenerDatosAnalisisActivos();
     crearGraficasPorSensor(datosParaSensores);
     
     console.log(`📊 Gráficas actualizadas con filtros individuales`);
@@ -4387,6 +4560,66 @@ function filtrarDatosPorHora(datos, horaInicioStr, horaFinStr) {
     });
 }
 
+function filtrarDatosPorSensoresSeleccionados(datos) {
+    if (!datos || datos.length === 0) {
+        return [];
+    }
+
+    let resultado = datos;
+    if (sensoresExcluidos && sensoresExcluidos.size > 0) {
+        resultado = resultado.filter(dato => !sensoresExcluidos.has(String(dato.sensor || 'Sin Sensor').trim()));
+    }
+
+    if (!sensoresSeleccionados || sensoresSeleccionados.size === 0) {
+        return resultado;
+    }
+
+    return resultado.filter(dato => sensoresSeleccionados.has(String(dato.sensor || 'Sin Sensor').trim()));
+}
+
+function obtenerDatosAnalisisActivos() {
+    const base = datosFiltradosActuales || datosAnalisisOriginales;
+    return filtrarDatosPorSensoresSeleccionados(base);
+}
+
+function aplicarFiltroSensoresSeleccionados() {
+    const datos = obtenerDatosAnalisisActivos();
+    llenarTablaDatos(datos);
+    if (datos.length > 0) {
+        actualizarEstadisticasAnalisis(datos, true);
+        crearAnalisisPorSensor(datos, calcularAnalisis(datos).media);
+        actualizarGraficasConFiltro();
+    } else {
+        showToast('No hay sensores seleccionados con datos útiles', 'warning');
+        document.getElementById('analisisSensores').innerHTML = '<p class="empty-state">No hay sensores seleccionados.</p>';
+        crearGraficasPorSensor([]);
+    }
+}
+
+function actualizarEstadisticasAnalisis(datos, mostrarFH = false) {
+    const analisis = calcularAnalisis(datos);
+    document.getElementById('statTotal').textContent = analisis.totalDatos;
+    document.getElementById('statMedia').textContent = analisis.media.toFixed(2);
+    document.getElementById('statDesv').textContent = analisis.desviacionEstandar.toFixed(2);
+    document.getElementById('statMax').textContent = analisis.maximo.toFixed(2);
+    document.getElementById('statMin').textContent = analisis.minimo.toFixed(2);
+    document.getElementById('statAnormales').textContent = analisis.datosAnormales;
+    document.getElementById('statRango').textContent = analisis.rango.toFixed(2);
+    document.getElementById('statCoefVar').textContent = analisis.coeficienteVariacion.toFixed(2) + '%';
+    document.getElementById('statPorcentajeAnormales').textContent = analisis.porcentajeAnormales.toFixed(2) + '%';
+    document.getElementById('statQ1').textContent = analisis.q1.toFixed(2);
+    document.getElementById('statQ2').textContent = analisis.q2.toFixed(2);
+    document.getElementById('statQ3').textContent = analisis.q3.toFixed(2);
+
+    if (mostrarFH && ultimoAnalisisFH && ultimoAnalisisFH.factorHistorico !== null && ultimoAnalisisFH.factorHistorico !== undefined) {
+        document.getElementById('statFHContainer').style.display = 'flex';
+        document.getElementById('statFactorHistorico').textContent = ultimoAnalisisFH.factorHistorico.toFixed(6);
+        document.getElementById('statParametroZ').textContent = ultimoAnalisisFH.parametroZ || 14.0;
+    } else {
+        document.getElementById('statFHContainer').style.display = 'none';
+    }
+}
+
 // Función para calcular análisis estadístico básico de datos
 function calcularAnalisis(datos) {
     if (!datos || datos.length === 0) {
@@ -4397,7 +4630,12 @@ function calcularAnalisis(datos) {
             maximo: 0,
             totalDatos: 0,
             datosAnormales: 0,
-            porcentajeAnormales: 0
+            porcentajeAnormales: 0,
+            q1: 0,
+            q2: 0,
+            q3: 0,
+            rango: 0,
+            coeficienteVariacion: 0
         };
     }
     
@@ -4410,10 +4648,14 @@ function calcularAnalisis(datos) {
     
     const minimo = Math.min(...valores);
     const maximo = Math.max(...valores);
-    
-    // Contar anormales (asumiendo que hay una propiedad 'anormal' en los datos)
+    const valoresOrdenados = valores.slice().sort((a, b) => a - b);
+    const q1 = calcularCuartil(valoresOrdenados, 0.25);
+    const q2 = calcularCuartil(valoresOrdenados, 0.50);
+    const q3 = calcularCuartil(valoresOrdenados, 0.75);
     const datosAnormales = datos.filter(d => d.anormal === true).length;
-    const porcentajeAnormales = (datosAnormales / datos.length) * 100;
+    const porcentajeAnormales = (datos.length > 0) ? (datosAnormales / datos.length) * 100 : 0;
+    const rango = maximo - minimo;
+    const coeficienteVariacion = media !== 0 ? (desviacionEstandar / media) * 100 : 0;
     
     return {
         media: media,
@@ -4422,7 +4664,12 @@ function calcularAnalisis(datos) {
         maximo: maximo,
         totalDatos: datos.length,
         datosAnormales: datosAnormales,
-        porcentajeAnormales: porcentajeAnormales
+        porcentajeAnormales: porcentajeAnormales,
+        q1: q1,
+        q2: q2,
+        q3: q3,
+        rango: rango,
+        coeficienteVariacion: coeficienteVariacion
     };
 }
 
@@ -4431,8 +4678,8 @@ function poblarSelectorSensoresFiltro(datos) {
     const sensorSelect = document.getElementById('filtroSensor');
     if (!sensorSelect) return;
     
-    // Obtener sensores únicos de los datos
-    const sensoresUnicos = [...new Set(datos.map(d => d.sensor).filter(s => s))].sort();
+    // Obtener sensores útiles del análisis: excluir los que tienen todos sus valores en cero
+    const sensoresUnicos = obtenerSensoresConDatos(datos).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
     
     // Limpiar opciones existentes (excepto "Todos los sensores")
     sensorSelect.innerHTML = '<option value="">Todos los sensores</option>';
@@ -4444,6 +4691,45 @@ function poblarSelectorSensoresFiltro(datos) {
         option.textContent = sensor;
         sensorSelect.appendChild(option);
     });
+}
+
+function poblarSelectorSensoresExclusion(datos) {
+    const exclusionSelect = document.getElementById('excluirSensoresSelect');
+    if (!exclusionSelect) return;
+
+    const sensoresUnicos = obtenerSensoresConDatos(datos).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    exclusionSelect.innerHTML = '';
+
+    sensoresUnicos.forEach(sensor => {
+        const option = document.createElement('option');
+        option.value = sensor;
+        option.textContent = sensor;
+        if (sensoresExcluidos.has(sensor)) {
+            option.selected = true;
+        }
+        exclusionSelect.appendChild(option);
+    });
+}
+
+function aplicarExclusionSensores() {
+    const exclusionSelect = document.getElementById('excluirSensoresSelect');
+    if (!exclusionSelect) return;
+
+    sensoresExcluidos = new Set(Array.from(exclusionSelect.selectedOptions).map(opt => opt.value.trim()).filter(Boolean));
+
+    // Asegurar que los sensores excluidos no queden seleccionados
+    sensoresSeleccionados = new Set([...sensoresSeleccionados].filter(s => !sensoresExcluidos.has(s)));
+
+    aplicarFiltroSensoresSeleccionados();
+}
+
+function limpiarExclusionSensores() {
+    sensoresExcluidos.clear();
+    const exclusionSelect = document.getElementById('excluirSensoresSelect');
+    if (exclusionSelect) {
+        Array.from(exclusionSelect.options).forEach(option => option.selected = false);
+    }
+    aplicarFiltroSensoresSeleccionados();
 }
 
 // Log de carga del archivo

@@ -55,6 +55,7 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import java.io.ByteArrayInputStream;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -243,8 +244,8 @@ public class CargaDatosServicio {
                 Row r = sheet.getRow(i);
                 if (r == null) continue;
                 for (Cell c : r) {
-                    String hv = formatter.formatCellValue(c).trim().toLowerCase();
-                    if (hv.contains("fecha") || hv.contains("hora") || hv.contains("%hr") || hv.contains("medida")) {
+                    String hv = normalizeHeaderText(formatter.formatCellValue(c));
+                    if (hv.contains("fecha") || hv.contains("hora") || hv.contains("%hr") || hv.contains("medida") || hv.contains("numero de serie") || hv.contains("serial")) {
                         headerRowIndex = i;
                         headerFound = true;
                         break;
@@ -264,35 +265,137 @@ public class CargaDatosServicio {
             // Mapear índices de columnas relevantes
             Integer idxFecha = null;
             Integer idxHora = null;
+            Integer idxNumeroSerie = null;
+            Integer idxCelsius = null;
+            Integer idxHumedad = null;
             Map<Integer, String> sensorColumns = new HashMap<>();
 
             for (Cell cell : headerRow) {
                 String headRaw = formatter.formatCellValue(cell).trim();
-                String head = headRaw.toLowerCase();
+                String head = normalizeHeaderText(headRaw);
                 int col = cell.getColumnIndex();
                 if (head.contains("fecha") || head.contains("date")) idxFecha = col;
                 else if (head.contains("hora") || head.contains("time")) idxHora = col;
+                else if (head.contains("numero de serie") || head.contains("nro de serie") || head.contains("n° de serie") || head.contains("serie") || head.contains("serial")) {
+                    idxNumeroSerie = col;
+                }
                 else if (head.contains("medida") || head.matches("^#?\\d+$")) {
                     // 'Medida' es índice/serie, ignorar
                 }
-                else if (head.contains("transcurrido") || head.contains("transcurrido") || head.contains("eventos") || head.contains("comentario")) {
+                else if (head.contains("transcurrido") || head.contains("eventos") || head.contains("comentario")) {
                     // columnas de texto/meta, ignorar
                 }
                 else if (head.matches(".*(t\\d+|sensor|s\\d+).*")) {
                     sensorColumns.put(col, headRaw);
                 }
-                else if (head.contains("%hr") || head.contains("% hr") || head.equals("%hr") || head.equals("hr") || head.contains("humedad") ) {
+                else if (head.contains("%hr") || head.contains("% hr") || head.equals("%hr") || head.equals("hr") || head.contains("humedad")) {
+                    idxHumedad = col;
                     sensorColumns.put(col, "%HR");
                 }
-                else if (head.contains("°c") || head.contains("celsius") || head.contains("temperatura") || head.equals("c") ) {
+                else if (head.contains("°c") || head.contains("celsius") || head.contains("temperatura") || head.equals("c")) {
+                    idxCelsius = col;
                     sensorColumns.put(col, "°C");
                 }
                 else if (head.matches(".*(temp|temperatura|t[mp]).*")) {
+                    idxCelsius = col;
                     sensorColumns.put(col, headRaw);
                 }
                 else {
                     // columnas numéricas sin nombre claro: se evaluará en la fila de datos
                 }
+            }
+
+            boolean esFormatoLogtagNumeroSerie = idxNumeroSerie != null && idxCelsius != null;
+
+            if (esFormatoLogtagNumeroSerie) {
+                DateTimeFormatter dateFmt1 = DateTimeFormatter.ofPattern("d/M/yyyy");
+                DateTimeFormatter dateFmt2 = DateTimeFormatter.ofPattern("yyyy-M-d");
+                DateTimeFormatter timeFmt1 = DateTimeFormatter.ofPattern("H:mm:ss");
+                DateTimeFormatter timeFmt2 = DateTimeFormatter.ofPattern("H:mm");
+
+                int seq = 0;
+                for (int r = firstRow; r <= lastRow; r++) {
+                    Row row = sheet.getRow(r);
+                    if (row == null) continue;
+
+                    String serial = formatter.formatCellValue(row.getCell(idxNumeroSerie)).trim();
+                    if (serial.isEmpty()) continue;
+
+                    // construir timestamp
+                    LocalDate date = null;
+                    LocalTime time = null;
+                    try {
+                        if (idxFecha != null) {
+                            String fechaStr = formatter.formatCellValue(row.getCell(idxFecha)).trim();
+                            if (!fechaStr.isEmpty()) {
+                                try { date = LocalDate.parse(fechaStr, dateFmt1); } catch (DateTimeParseException ex1) {
+                                    try { date = LocalDate.parse(fechaStr, dateFmt2); } catch (DateTimeParseException ex2) { date = null; }
+                                }
+                            }
+                        }
+                        if (idxHora != null) {
+                            String horaStr = formatter.formatCellValue(row.getCell(idxHora)).trim();
+                            if (!horaStr.isEmpty()) {
+                                try { time = LocalTime.parse(horaStr, timeFmt1); } catch (DateTimeParseException ex1) {
+                                    try { time = LocalTime.parse(horaStr, timeFmt2); } catch (DateTimeParseException ex2) { time = null; }
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        // ignorar parseo de fecha/hora por fila
+                    }
+
+                    java.time.LocalDateTime timestamp;
+                    if (date != null) {
+                        if (time == null) time = LocalTime.MIDNIGHT;
+                        timestamp = java.time.LocalDateTime.of(date, time);
+                    } else {
+                        timestamp = java.time.LocalDateTime.now().plusSeconds(seq);
+                    }
+
+                    // Agregar valor de temperatura como dato principal
+                    String temperaturaRaw = formatter.formatCellValue(row.getCell(idxCelsius)).trim();
+                    if (!temperaturaRaw.isEmpty()) {
+                        try {
+                            double valor = Double.parseDouble(temperaturaRaw.replace(',', '.'));
+                            DatoEnsayoTemporal d = new DatoEnsayoTemporal();
+                            d.setEnsayoId(ensayoId);
+                            d.setTimestamp(timestamp);
+                            d.setValor(valor);
+                            d.setFuente("EXCEL_LOGTAG");
+                            d.setNumeroSecuencia(seq);
+                            d.setSensor(serial);
+                            resultado.add(d);
+                        } catch (NumberFormatException ignored) {
+                            // ignorar valor de temperatura no numérico
+                        }
+                    }
+
+                    // Agregar valor de humedad como dato adicional si existe
+                    if (idxHumedad != null) {
+                        String hrRaw = formatter.formatCellValue(row.getCell(idxHumedad)).trim();
+                        if (!hrRaw.isEmpty()) {
+                            try {
+                                double valorHr = Double.parseDouble(hrRaw.replace(',', '.'));
+                                DatoEnsayoTemporal dHr = new DatoEnsayoTemporal();
+                                dHr.setEnsayoId(ensayoId);
+                                dHr.setTimestamp(timestamp);
+                                dHr.setValor(valorHr);
+                                dHr.setFuente("EXCEL_LOGTAG");
+                                dHr.setNumeroSecuencia(seq);
+                                dHr.setSensor(serial + "_HR");
+                                resultado.add(dHr);
+                            } catch (NumberFormatException ignored) {
+                                // ignorar valor de humedad no numérico
+                            }
+                        }
+                    }
+
+                    seq++;
+                }
+
+                logger.info("Formato logtag plano detectado, registros generados: {}", resultado.size());
+                return resultado;
             }
 
             // Si no se detectaron columnas de sensor explícitas, intentar detectar columnas numéricas en la segunda fila
@@ -402,6 +505,17 @@ public class CargaDatosServicio {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String normalizeHeaderText(String text) {
+        if (text == null) {
+            return "";
+        }
+        String normal = Normalizer.normalize(text.trim().toLowerCase(), Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        normal = normal.replaceAll("[:\\s]+$", "");
+        normal = normal.replaceAll("\\s+", " ");
+        return normal;
     }
     
     /**
