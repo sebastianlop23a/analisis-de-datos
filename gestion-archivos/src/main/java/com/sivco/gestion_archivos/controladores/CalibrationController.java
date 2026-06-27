@@ -57,9 +57,10 @@ public class CalibrationController {
             
             // The client no longer provides a requested model type. The service
             // will determine and store the models based on the uploaded file.
-            CalibrationSession session = calibrationManagementService.uploadAndProcessCalibration(
+                CalibrationSession session = calibrationManagementService.uploadAndProcessCalibration(
                 deviceId,
                 file,
+                null,
                 null,
                 description,
                 uploadedBy

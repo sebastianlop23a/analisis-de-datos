@@ -163,6 +163,22 @@ public class CargaDatosServicio {
     public List<DatoEnsayoTemporal> cargarDatosExcel(MultipartFile archivo, Long ensayoId) throws IOException {
         logger.info("Iniciando carga de Excel para ensayo: {} - archivo: {}", ensayoId, archivo.getOriginalFilename());
 
+        // Obtener el ensayo para acceder a su máquina y rangos/límites
+        Optional<Ensayo> ensayoOpt = ensayoServicio.obtenerEnsayo(ensayoId);
+        Maquina maquina = null;
+        if (ensayoOpt.isPresent()) {
+            Ensayo ensayo = ensayoOpt.get();
+            maquina = ensayo.getMaquina();
+            if (maquina != null) {
+                logger.info("Máquina del ensayo: {}", maquina.getNombre());
+                logger.info("Rangos de validación: [{}, {}]", maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+            } else {
+                logger.warn("El ensayo no tiene máquina asociada");
+            }
+        } else {
+            logger.warn("Ensayo no encontrado con ID: {}", ensayoId);
+        }
+
         List<DatoEnsayoTemporal> resultado = new ArrayList<>();
         DataFormatter formatter = new DataFormatter();
 
@@ -365,6 +381,28 @@ public class CargaDatosServicio {
                             d.setFuente("EXCEL_LOGTAG");
                             d.setNumeroSecuencia(seq);
                             d.setSensor(serial);
+                            
+                            // Detectar si el valor está fuera de los límites de la máquina
+                            boolean esAnormal = false;
+                            if (maquina != null && maquina.getLimiteInferior() != null && maquina.getLimiteSuperior() != null) {
+                                esAnormal = valor < maquina.getLimiteInferior() || valor > maquina.getLimiteSuperior();
+                                if (esAnormal) {
+                                    logger.info("✅ Valor ANORMAL detectado en {} [{}]: valor={} FUERA del rango [{}, {}]",
+                                        serial, timestamp, valor, maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                                } else {
+                                    logger.debug("✓ Valor normal en {} [{}]: valor={} dentro del rango [{}, {}]",
+                                        serial, timestamp, valor, maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                                }
+                            } else {
+                                if (maquina == null) {
+                                    logger.warn("❌ No se puede detectar anomalías: la máquina del ensayo es null. Sensor: {}, valor: {}", serial, valor);
+                                } else if (maquina.getLimiteInferior() == null || maquina.getLimiteSuperior() == null) {
+                                    logger.warn("❌ No se puede detectar anomalías: límites no configurados en máquina '{}'. Inferior: {}, Superior: {}",
+                                        maquina.getNombre(), maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                                }
+                            }
+                            d.setAnormal(esAnormal);
+                            
                             resultado.add(d);
                         } catch (NumberFormatException ignored) {
                             // ignorar valor de temperatura no numérico
@@ -384,6 +422,18 @@ public class CargaDatosServicio {
                                 dHr.setFuente("EXCEL_LOGTAG");
                                 dHr.setNumeroSecuencia(seq);
                                 dHr.setSensor(serial + "_HR");
+                                
+                                // Detectar si el valor de humedad está fuera de los límites
+                                boolean esAnormalHr = false;
+                                if (maquina != null && maquina.getLimiteInferiorHumedad() != null && maquina.getLimiteSuperiorHumedad() != null) {
+                                    esAnormalHr = valorHr < maquina.getLimiteInferiorHumedad() || valorHr > maquina.getLimiteSuperiorHumedad();
+                                    if (esAnormalHr) {
+                                        logger.info("✅ Valor ANORMAL de humedad detectado en {} [{}]: valor={} FUERA del rango [{}, {}]",
+                                            serial + "_HR", timestamp, valorHr, maquina.getLimiteInferiorHumedad(), maquina.getLimiteSuperiorHumedad());
+                                    }
+                                }
+                                dHr.setAnormal(esAnormalHr);
+                                
                                 resultado.add(dHr);
                             } catch (NumberFormatException ignored) {
                                 // ignorar valor de humedad no numérico
@@ -472,6 +522,28 @@ public class CargaDatosServicio {
                         d.setFuente("EXCEL");
                         d.setNumeroSecuencia(seq);
                         d.setSensor(entry.getValue());
+                        
+                        // Detectar si el valor está fuera de los límites de la máquina
+                        boolean esAnormal = false;
+                        if (maquina != null && maquina.getLimiteInferior() != null && maquina.getLimiteSuperior() != null) {
+                            esAnormal = valor < maquina.getLimiteInferior() || valor > maquina.getLimiteSuperior();
+                            if (esAnormal) {
+                                logger.info("✅ Valor ANORMAL detectado en {} [{}]: valor={} FUERA del rango [{}, {}]",
+                                    entry.getValue(), timestamp, valor, maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                            } else {
+                                logger.debug("✓ Valor normal en {} [{}]: valor={} dentro del rango [{}, {}]",
+                                    entry.getValue(), timestamp, valor, maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                            }
+                        } else {
+                            if (maquina == null) {
+                                logger.warn("❌ No se puede detectar anomalías: la máquina del ensayo es null. Sensor: {}, valor: {}", entry.getValue(), valor);
+                            } else if (maquina.getLimiteInferior() == null || maquina.getLimiteSuperior() == null) {
+                                logger.warn("❌ No se puede detectar anomalías: límites no configurados en máquina '{}'. Inferior: {}, Superior: {}",
+                                    maquina.getNombre(), maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                            }
+                        }
+                        d.setAnormal(esAnormal);
+                        
                         resultado.add(d);
                     } catch (NumberFormatException nfe) {
                         // ignorar valores no numéricos
@@ -636,18 +708,39 @@ public class CargaDatosServicio {
                 dato.setNumeroSecuencia(numeroSecuencia++);
                 
                 // Validar si el valor está fuera de los límites de la máquina
+                // IMPORTANTE: Siempre detectar anomalías si la máquina tiene límites configurados
+                boolean esAnormal = false;
                 if (maquina != null && maquina.getLimiteInferior() != null && maquina.getLimiteSuperior() != null) {
-                    boolean esAnormal = dato.getValor() < maquina.getLimiteInferior() || 
-                                       dato.getValor() > maquina.getLimiteSuperior();
-                    dato.setAnormal(esAnormal);
-                    if (esAnormal) {
-                        logger.debug("Valor anormal detectado en {} con timestamp {}: {} fuera del rango [{}, {}]",
-                            dato.getSensor(), dato.getTimestamp(), dato.getValor(),
-                            maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                    if (dato.getValor() != null) {
+                        double valor = dato.getValor();
+                        double limiteInf = maquina.getLimiteInferior();
+                        double limiteSup = maquina.getLimiteSuperior();
+                        
+                        esAnormal = valor < limiteInf || valor > limiteSup;
+                        
+                        // Loguear TODOS los puntos para debugging
+                        if (esAnormal) {
+                            logger.info("✅ Valor ANORMAL detectado en {} [{}]: valor={} FUERA del rango [{}, {}]",
+                                dato.getSensor(), dato.getTimestamp(), valor, limiteInf, limiteSup);
+                        } else {
+                            logger.debug("✓ Valor normal en {} [{}]: valor={} dentro del rango [{}, {}]",
+                                dato.getSensor(), dato.getTimestamp(), valor, limiteInf, limiteSup);
+                        }
+                    } else {
+                        logger.warn("⚠️ Valor null en sensor {}: no se puede detectar anomalías", dato.getSensor());
+                        esAnormal = false;
                     }
                 } else {
-                    dato.setAnormal(false);
+                    // Si no hay máquina o no tiene límites, loguear para debugging
+                    if (maquina == null) {
+                        logger.warn("❌ No se puede detectar anomalías: la máquina del ensayo es null. Sensor: {}, valor: {}",
+                            dato.getSensor(), dato.getValor());
+                    } else if (maquina.getLimiteInferior() == null || maquina.getLimiteSuperior() == null) {
+                        logger.warn("❌ No se puede detectar anomalías: límites no configurados en la máquina '{}'. Inferior: {}, Superior: {}",
+                            maquina.getNombre(), maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                    }
                 }
+                dato.setAnormal(esAnormal);
                 
                 datosProcessados.add(dato);
             }
@@ -658,11 +751,34 @@ public class CargaDatosServicio {
             
             logger.info("PDF SIVCO-LOGGER procesado: {} registros de temperatura validados", datosProcessados.size());
             
+            // Log summary ANTES de aplicar correcciones
+            long anormalesAntesCorreccion = datosProcessados.stream().filter(DatoEnsayoTemporal::getAnormal).count();
+            logger.info("RESUMEN ANTES DE CORRECCIONES: {} registros totales, {} ANORMALES, {} normales",
+                datosProcessados.size(), anormalesAntesCorreccion, datosProcessados.size() - anormalesAntesCorreccion);
+            
             logger.info("Aplicando correcciones a {} datos...", datosProcessados.size());
             // Aplicar correcciones existentes en paralelo para mejor rendimiento
             List<DatoEnsayoTemporal> datosCorregidos = aplicarCorreccionesEnParalelo(datosProcessados, ensayoId);
             logger.info("Correcciones aplicadas: {} datos procesados, {} datos corregidos", 
                 datosProcessados.size(), datosCorregidos.size());
+            
+            // Log summary DESPUÉS de aplicar correcciones
+            long anormalesDespuesCorreccion = datosCorregidos.stream().filter(DatoEnsayoTemporal::getAnormal).count();
+            logger.info("RESUMEN DESPUÉS DE CORRECCIONES: {} registros totales, {} ANORMALES, {} normales",
+                datosCorregidos.size(), anormalesDespuesCorreccion, datosCorregidos.size() - anormalesDespuesCorreccion);
+            
+            // Loguear mínimo y máximo de valores anormales
+            if (anormalesDespuesCorreccion > 0) {
+                double minAnormal = datosCorregidos.stream()
+                    .filter(DatoEnsayoTemporal::getAnormal)
+                    .mapToDouble(DatoEnsayoTemporal::getValor)
+                    .min().orElse(Double.NaN);
+                double maxAnormal = datosCorregidos.stream()
+                    .filter(DatoEnsayoTemporal::getAnormal)
+                    .mapToDouble(DatoEnsayoTemporal::getValor)
+                    .max().orElse(Double.NaN);
+                logger.info("⚠️ Valores anormales - MIN: {}, MAX: {}", minAnormal, maxAnormal);
+            }
             
             return datosCorregidos;
             
@@ -722,69 +838,39 @@ public class CargaDatosServicio {
 
             logger.info("Total de líneas en archivo: " + allLines.size());
 
-            // Intentar extraer nombres de sensor desde la línea de encabezado (4ª línea)
+            // Intentar extraer nombres de sensor desde una fila de encabezado válida
             String[] headerSensors = null;
-            if (allLines.size() >= 4) {
-                String[] possibleHeader = allLines.get(3); // índice 3 = línea 4
+            int headerRowIndex = -1;
+            for (int rowIndex = 0; rowIndex < Math.min(allLines.size(), 4); rowIndex++) {
+                String[] possibleHeader = allLines.get(rowIndex);
                 if (possibleHeader != null && possibleHeader.length >= 3) {
                     boolean hasSensorNames = false;
-                    for (int i = 2; i < possibleHeader.length; i++) {
-                        if (possibleHeader[i] != null && !possibleHeader[i].trim().isEmpty()) {
+                    for (int j = 2; j < possibleHeader.length; j++) {
+                        if (possibleHeader[j] != null && !possibleHeader[j].trim().isEmpty()) {
                             hasSensorNames = true;
                             break;
                         }
                     }
-                    if (hasSensorNames) {
+                    if (hasSensorNames && !esFilaDatosConFechaHora(possibleHeader)) {
                         headerSensors = new String[possibleHeader.length];
-                        for (int i = 0; i < possibleHeader.length; i++) {
-                            headerSensors[i] = possibleHeader[i] == null ? null : possibleHeader[i].trim();
+                        for (int j = 0; j < possibleHeader.length; j++) {
+                            headerSensors[j] = possibleHeader[j] == null ? null : possibleHeader[j].trim();
                         }
-                        logger.info("Header de sensores detectado en CSV: " + Arrays.toString(headerSensors));
-
-                        // Si se proporcionó un conjunto de sensores permitidos (desde PDF), filtrar nombres
-                        if (sensoresPermitidos != null && !sensoresPermitidos.isEmpty()) {
-                            Set<String> permitidosNorm = new HashSet<>();
-                            for (String s : sensoresPermitidos) {
-                                if (s == null) continue;
-                                permitidosNorm.add(s.toLowerCase().trim());
-                                try {
-                                    String norm = normalizarNombreSensor(s);
-                                    if (norm != null) permitidosNorm.add(norm);
-                                } catch (Exception ignore) {}
-                                Matcher mt = Pattern.compile("[tT](\\d+)").matcher(s);
-                                if (mt.find()) {
-                                    permitidosNorm.add("sensor_" + mt.group(1));
-                                }
-                            }
-
-                            // Filtrar headerSensors que no estén en permitidosNorm
-                            for (int i = 0; i < headerSensors.length; i++) {
-                                if (i < 2) continue; // columnas de fecha/hora
-                                String h = headerSensors[i];
-                                if (h == null || h.isEmpty()) {
-                                    headerSensors[i] = null;
-                                    continue;
-                                }
-                                String hNorm = normalizarNombreSensor(h);
-                                if (!permitidosNorm.contains(hNorm) && !permitidosNorm.contains(h.toLowerCase().trim())) {
-                                    logger.debug("Header sensor '{}' no coincide con PDF, será ignorado para mapeo", h);
-                                    headerSensors[i] = null;
-                                } else {
-                                    headerSensors[i] = h;
-                                }
-                            }
-                        }
+                        headerRowIndex = rowIndex;
+                        logger.info("Header de sensores detectado en CSV en la línea " + (headerRowIndex + 1) + ": " + Arrays.toString(headerSensors));
+                        break;
                     }
                 }
             }
-            
+
+            Map<Integer, String> columnSensorNames = construirMapaSensorCsv(headerSensors);
+            int primeraLineaDatos = headerRowIndex >= 0 ? headerRowIndex + 2 : 5;
             for (int lineIndex = 0; lineIndex < allLines.size(); lineIndex++) {
                 String[] partes = allLines.get(lineIndex);
                 int numeroLinea = lineIndex + 1;
-                
-                // Saltar las primeras 4 líneas (metadatos/encabezados)
-                if (numeroLinea <= 4) {
-                    logger.debug("Saltando línea de encabezado: " + numeroLinea);
+
+                if (numeroLinea < primeraLineaDatos) {
+                    logger.debug("Saltando línea de encabezado/metadatos: " + numeroLinea);
                     continue;
                 }
                 
@@ -825,26 +911,29 @@ public class CargaDatosServicio {
                                     dato.setEnsayoId(ensayoId);
                                     dato.setTimestamp(timestamp);
                                     dato.setValor(valor);
-                                    String sensorName = "sensor_" + (i - 1);
-                                    // Si se detectaron nombres de sensor en el encabezado, úsalos
-                                    if (headerSensors != null && i < headerSensors.length && headerSensors[i] != null && !headerSensors[i].isEmpty()) {
-                                        sensorName = normalizarNombreSensor(headerSensors[i]);
-                                    }
+                                    String sensorName = columnSensorNames.getOrDefault(i, "sensor_" + (i - 1));
                                     dato.setFuente("ARCHIVO_CICLO");
                                     dato.setSensor(sensorName);
                                     dato.setNumeroSecuencia(numeroSecuencia++);
                                     
                                     // Validar si el valor está fuera de los límites de la máquina
+                                    boolean esAnormal = false;
                                     if (maquina != null && maquina.getLimiteInferior() != null && maquina.getLimiteSuperior() != null) {
-                                        boolean esAnormal = valor < maquina.getLimiteInferior() || valor > maquina.getLimiteSuperior();
-                                        dato.setAnormal(esAnormal);
+                                        esAnormal = valor < maquina.getLimiteInferior() || valor > maquina.getLimiteSuperior();
                                         if (esAnormal) {
-                                            logger.debug("Valor anormal detectado en " + sensorName + " (línea " + numeroLinea + "): " + valor + 
-                                                " fuera del rango [" + maquina.getLimiteInferior() + ", " + maquina.getLimiteSuperior() + "]");
+                                            logger.debug("Valor ANORMAL detectado en {} (línea {}): {} fuera del rango [{}, {}]",
+                                                sensorName, numeroLinea, valor, maquina.getLimiteInferior(), maquina.getLimiteSuperior());
                                         }
                                     } else {
-                                        dato.setAnormal(false);
+                                        if (maquina == null) {
+                                            logger.warn("No se puede detectar anomalías en CSV: la máquina del ensayo es null. Sensor: {}, valor: {}",
+                                                sensorName, valor);
+                                        } else if (maquina.getLimiteInferior() == null || maquina.getLimiteSuperior() == null) {
+                                            logger.warn("No se puede detectar anomalías en CSV: límites no configurados en máquina '{}'. Inferior: {}, Superior: {}",
+                                                maquina.getNombre(), maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                                        }
                                     }
+                                    dato.setAnormal(esAnormal);
                                     
                                     datos.add(dato);
                                 } catch (NumberFormatException nfe) {
@@ -926,6 +1015,38 @@ public class CargaDatosServicio {
         ensayoServicio.agregarDatoTemporalCSV(ensayoId, dato);
     }
     
+    private boolean esFilaDatosConFechaHora(String[] row) {
+        if (row == null || row.length < 2) {
+            return false;
+        }
+        String fecha = row[0] == null ? "" : row[0].trim();
+        String hora = row[1] == null ? "" : row[1].trim();
+        return esFechaHoraValida(fecha, hora);
+    }
+
+    private boolean esFechaHoraValida(String fecha, String hora) {
+        if (fecha.isEmpty() || hora.isEmpty()) {
+            return false;
+        }
+        String timestamp = fecha + " " + hora;
+        String[] formatos = {
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "M/d/yyyy HH:mm:ss",
+            "dd/MM/yyyy HH:mm:ss"
+        };
+        for (String formato : formatos) {
+            try {
+                LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern(formato));
+                return true;
+            } catch (Exception e) {
+                // continuar con el siguiente formato
+            }
+        }
+        return false;
+    }
+    
     private LocalDateTime parseTimestamp(String timestamp) {
         timestamp = timestamp.trim();
         
@@ -958,6 +1079,43 @@ public class CargaDatosServicio {
         // Si ningún formato funciona, usar la hora actual
         logger.warn("No se pudo parsear timestamp: " + timestamp + ", usando hora actual");
         return LocalDateTime.now();
+    }
+
+    private Map<Integer, String> construirMapaSensorCsv(String[] headerSensors) {
+        Map<Integer, String> map = new HashMap<>();
+        if (headerSensors == null) {
+            return map;
+        }
+        for (int i = 2; i < headerSensors.length; i++) {
+            String header = headerSensors[i];
+            if (header == null || header.trim().isEmpty()) {
+                continue;
+            }
+            String normalizedHeader = header.trim();
+            String sensorName = normalizarNombreSensor(normalizedHeader);
+            String lowerHeader = normalizedHeader.toLowerCase();
+            if (esCabeceraHumedad(lowerHeader)) {
+                if (sensorName.equals("hr") || sensorName.equals("%hr") || sensorName.equals("humedad") || sensorName.equals("humidity") || sensorName.equals("rh")) {
+                    sensorName = "sensor_" + (i - 1) + "_HR";
+                } else if (!sensorName.contains("hr") && !sensorName.contains("humedad") && !sensorName.contains("humidity") && !sensorName.contains("rh")) {
+                    sensorName = sensorName + "_HR";
+                }
+            } else if (esCabeceraTemperatura(lowerHeader)) {
+                if (sensorName.equals("c") || sensorName.equals("°c") || sensorName.equals("celsius") || sensorName.equals("temperatura") || sensorName.equals("temp")) {
+                    sensorName = "sensor_" + (i - 1);
+                }
+            }
+            map.put(i, sensorName);
+        }
+        return map;
+    }
+
+    private boolean esCabeceraHumedad(String header) {
+        return header.contains("%hr") || header.contains("% hr") || header.equals("hr") || header.contains("humedad") || header.contains("humidity") || header.equals("rh") || header.contains("rh");
+    }
+
+    private boolean esCabeceraTemperatura(String header) {
+        return header.contains("°c") || header.contains("celsius") || header.contains("temperatura") || header.contains("temp") || header.matches(".*\\bt\\d+\\b.*");
     }
     
     public List<DatoEnsayoTemporal> cargarDatosJSON(MultipartFile archivo, Long ensayoId) throws IOException {
@@ -1023,16 +1181,22 @@ public class CargaDatosServicio {
                         dato.setNumeroSecuencia(numeroSecuencia++);
                         
                         // Validar si el valor está fuera de los límites de la máquina
+                        boolean esAnormal = false;
                         if (maquina != null && maquina.getLimiteInferior() != null && maquina.getLimiteSuperior() != null) {
-                            boolean esAnormal = valor < maquina.getLimiteInferior() || valor > maquina.getLimiteSuperior();
-                            dato.setAnormal(esAnormal);
+                            esAnormal = valor < maquina.getLimiteInferior() || valor > maquina.getLimiteSuperior();
                             if (esAnormal) {
-                                logger.debug("Valor anormal detectado en sensor_1 (línea " + (numeroSecuencia) + "): " + valor + 
-                                    " fuera del rango [" + maquina.getLimiteInferior() + ", " + maquina.getLimiteSuperior() + "]");
+                                logger.debug("Valor ANORMAL detectado en Excel en sensor_1 (línea {}): {} fuera del rango [{}, {}]",
+                                    numeroSecuencia, valor, maquina.getLimiteInferior(), maquina.getLimiteSuperior());
                             }
                         } else {
-                            dato.setAnormal(false);
+                            if (maquina == null) {
+                                logger.warn("No se puede detectar anomalías en Excel: la máquina del ensayo es null. Valor: {}", valor);
+                            } else if (maquina.getLimiteInferior() == null || maquina.getLimiteSuperior() == null) {
+                                logger.warn("No se puede detectar anomalías en Excel: límites no configurados en máquina '{}'. Inferior: {}, Superior: {}",
+                                    maquina.getNombre(), maquina.getLimiteInferior(), maquina.getLimiteSuperior());
+                            }
                         }
+                        dato.setAnormal(esAnormal);
                         
                         datos.add(dato);
                         
@@ -1227,6 +1391,10 @@ public class CargaDatosServicio {
         try {
             logger.info("Iniciando aplicación de correcciones para {} datos del ensayo {}", datosOriginales.size(), ensayoId);
             
+            // Log de entrada: contador de anormales
+            long anormalesEntrada = datosOriginales.stream().filter(DatoEnsayoTemporal::getAnormal).count();
+            logger.info("  📥 Datos de entrada: {} anormales de {} totales", anormalesEntrada, datosOriginales.size());
+            
             // Determine sensors in the data
             Set<String> sensoresEnDatos = datosOriginales.stream()
                 .map(DatoEnsayoTemporal::getSensor)
@@ -1278,8 +1446,12 @@ public class CargaDatosServicio {
                 if (deviceId != null) {
                     // Try new system first
                     try {
+                        com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel channel = com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel.TEMPERATURE;
+                        if (normalizedSensorName != null && normalizedSensorName.endsWith("_hr")) {
+                            channel = com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel.HUMIDITY;
+                        }
                         com.sivco.gestion_archivos.modelos.calibration.CalibrationSession newCalibration = 
-                            calibrationManagementService.getActiveCalibration(deviceId);
+                            calibrationManagementService.getActiveCalibration(deviceId, channel);
                         
                         if (newCalibration != null) {
                             newSystemCalibrations.put(normalizedSensorName, newCalibration);
@@ -1384,6 +1556,13 @@ public class CargaDatosServicio {
             logger.info("Successfully applied {} corrections out of {} data points", 
                 correccionesAplicadas, datosOriginales.size());
             
+            // Recalculate anomaly flags after applying corrections, because corrected values
+            // are the values that should be evaluated against machine limits.
+            recalcularAnormalidades(datosCorregidos, ensayoId);
+            
+            long anormalesSalida = datosCorregidos.stream().filter(DatoEnsayoTemporal::getAnormal).count();
+            logger.info("  📤 Datos de salida: {} anormales de {} totales", anormalesSalida, datosCorregidos.size());
+            
             return datosCorregidos;
             
         } catch (Exception e) {
@@ -1442,6 +1621,42 @@ public class CargaDatosServicio {
         copia.setSensor(dato.getSensor());
         copia.setAppliedCalibrationId(dato.getAppliedCalibrationId());
         return copia;
+    }
+
+    private void recalcularAnormalidades(List<DatoEnsayoTemporal> datos, Long ensayoId) {
+        try {
+            Optional<Ensayo> optEnsayo = ensayoServicio.obtenerEnsayo(ensayoId);
+            if (optEnsayo.isEmpty()) {
+                return;
+            }
+
+            Maquina maquina = optEnsayo.get().getMaquina();
+            if (maquina == null || maquina.getLimiteInferior() == null || maquina.getLimiteSuperior() == null) {
+                return;
+            }
+
+            int cambios = 0;
+            for (DatoEnsayoTemporal dato : datos) {
+                if (dato.getValor() == null) {
+                    continue;
+                }
+
+                boolean anormalCorregido = dato.getValor() < maquina.getLimiteInferior()
+                        || dato.getValor() > maquina.getLimiteSuperior();
+                boolean anormalAnterior = Boolean.TRUE.equals(dato.getAnormal());
+
+                if (anormalAnterior != anormalCorregido) {
+                    cambios++;
+                }
+                dato.setAnormal(anormalCorregido);
+            }
+
+            if (cambios > 0) {
+                logger.info("Recalculadas anomalías en {} datos tras correcciones", cambios);
+            }
+        } catch (Exception e) {
+            logger.debug("No se pudo recalcular anomalías tras correcciones: {}", e.getMessage());
+        }
     }
 
     /**
@@ -1520,12 +1735,17 @@ public class CargaDatosServicio {
                         try {
                             Long deviceId = Long.parseLong(normalized.substring("sensor_".length()));
                             result.put(normalized, deviceId);
+                            result.put(sensorName, deviceId);
                             continue;
                         } catch (NumberFormatException e) {
                             logger.debug("Could not extract device ID from sensor name: {}", normalized);
                         }
                     }
-                    
+
+                    String baseSensorName = normalized.endsWith("_hr")
+                            ? normalized.substring(0, normalized.length() - 3)
+                            : normalized;
+
                     // Second try: look up sensor by code (T1, T2, etc.) and get its ID
                     try {
                         List<com.sivco.gestion_archivos.modelos.Sensor> matchingSensors = sensoresActivos.stream()
@@ -1533,15 +1753,21 @@ public class CargaDatosServicio {
                                 String sensorCode = s.getCodigo();
                                 if (sensorCode == null) return false;
                                 String normalizedCode = normalizarNombreSensor(sensorCode);
-                                return normalizedCode.equals(normalized) || sensorCode.equalsIgnoreCase(sensorName);
+                                return normalizedCode.equals(normalized)
+                                    || normalizedCode.equals(baseSensorName)
+                                    || sensorCode.equalsIgnoreCase(sensorName)
+                                    || sensorCode.equalsIgnoreCase(baseSensorName);
                             })
                             .toList();
-                        
+
                         if (!matchingSensors.isEmpty()) {
                             Long deviceId = matchingSensors.get(0).getId(); // Take first match
                             result.put(normalized, deviceId);
                             result.put(sensorName, deviceId); // Also map original name
-                            logger.debug("Resolved sensor '{}' (normalized: '{}') to deviceId: {}", 
+                            if (!baseSensorName.equals(normalized)) {
+                                result.put(baseSensorName, deviceId);
+                            }
+                            logger.debug("Resolved sensor '{}' (normalized: '{}') to deviceId: {}",
                                 sensorName, normalized, deviceId);
                         } else {
                             logger.debug("No sensor found with code '{}' or normalized '{}'", sensorName, normalized);
@@ -1549,7 +1775,7 @@ public class CargaDatosServicio {
                     } catch (Exception e) {
                         logger.debug("Error looking up sensor by code for '{}': {}", sensorName, e.getMessage());
                     }
-                    
+
                 } catch (Exception e) {
                     logger.debug("Error resolving device ID for sensor {}: {}", sensorName, e.getMessage());
                 }
@@ -1636,6 +1862,12 @@ public class CargaDatosServicio {
             
             if (correcciones.isEmpty()) {
                 logger.debug("No calibration correction found for sensor: {}", sensorNombre);
+                // Fallback: if the sensor is a humidity variant, try the base temperature sensor
+                if (sensorNombre != null && sensorNombre.toLowerCase().endsWith("_hr")) {
+                    String sensorBase = sensorNombre.substring(0, sensorNombre.length() - 3);
+                    logger.debug("Falling back to base sensor calibration for {} -> {}", sensorNombre, sensorBase);
+                    return cargarCorreccionCSVPorSensorNombre(sensorBase);
+                }
                 return coeficientes;
             }
             

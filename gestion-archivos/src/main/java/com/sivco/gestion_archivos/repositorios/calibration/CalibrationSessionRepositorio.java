@@ -17,6 +17,9 @@ public interface CalibrationSessionRepositorio extends JpaRepository<Calibration
      */
     @Query("select s from CalibrationSession s left join fetch s.regressionModels where s.deviceId = :deviceId and s.isActive = true")
     Optional<CalibrationSession> findByDeviceIdAndIsActiveTrue(@Param("deviceId") Long deviceId);
+
+    @Query("select s from CalibrationSession s left join fetch s.regressionModels where s.deviceId = :deviceId and s.channel = :channel and s.isActive = true")
+    Optional<CalibrationSession> findByDeviceIdAndChannelAndIsActiveTrue(@Param("deviceId") Long deviceId, @Param("channel") com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel channel);
     
     /**
      * Encuentra todas las calibraciones de un dispositivo (activa y archivadas)

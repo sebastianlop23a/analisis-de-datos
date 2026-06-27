@@ -7,6 +7,16 @@ let sensoresExcluidos = new Set();
 let datosAnalisisOriginales = [];
 let datosFiltradosActuales = null;
 let ultimoAnalisisFH = null;
+var indicesSeleccionadosTabla = window.indicesSeleccionadosTabla || new Set();
+window.indicesSeleccionadosTabla = indicesSeleccionadosTabla;
+let filtrosGraficas = {
+    distribucion: null,
+    anormales: null,
+    boxplot: null,
+    cuartiles: null,
+    temporal: null,
+    sensores: {}
+};
 
 // Variables globales para gráficos principales
 let chartEstados = null;
@@ -18,6 +28,34 @@ let chartAnormales = null;
 let chartBoxplot = null;
 let chartCuartiles = null;
 let chartTemporal = null;
+// Current machine limits for the loaded ensayo (populated in cargarAnalisis)
+let maquinaLimites = null; // { limiteInferior, limiteSuperior, limiteInferiorHumedad, limiteSuperiorHumedad }
+
+function obtenerPluginAnnotation() {
+    if (typeof globalThis === 'undefined') return null;
+    return globalThis.ChartAnnotation
+        || globalThis.annotationPlugin
+        || globalThis.chartjsPluginAnnotation
+        || globalThis['chartjs-plugin-annotation']
+        || globalThis.Chart?.annotation
+        || null;
+}
+
+function registrarPluginAnnotation() {
+    const plugin = obtenerPluginAnnotation();
+    if (!plugin) {
+        console.warn('Chart.js annotation plugin no está disponible en globalThis.');
+        return;
+    }
+
+    if (typeof Chart !== 'undefined' && typeof Chart.register === 'function') {
+        try {
+            Chart.register(plugin);
+        } catch (error) {
+            console.warn('No se pudo registrar el plugin de anotación de Chart.js:', error);
+        }
+    }
+}
 
 async function inicializarApp() {
     try {
@@ -28,6 +66,7 @@ async function inicializarApp() {
         } else {
             updateStatusApi(false);
         }
+        registrarPluginAnnotation();
 
         // Cargar datos iniciales
         await cargarMaquinas();
@@ -162,31 +201,33 @@ function setupFormListeners() {
 // FORMULARIOS: MÁQUINAS
 // ====================================
 
-async function submitFormMaquina() {
-    console.log('Iniciando submitFormMaquina...');
-    
+function obtenerDatosMaquinaDesdeFormulario() {
     const nombre = document.getElementById('maquinaNombre').value;
     const tipo = document.getElementById('maquinaTipo').value;
     const limiteInf = parseFloat(document.getElementById('maquinaLimiteInf').value);
     const limiteSup = parseFloat(document.getElementById('maquinaLimiteSup').value);
+    const limiteHumedadInf = parseFloat(document.getElementById('maquinaLimiteHumedadInf').value);
+    const limiteHumedadSup = parseFloat(document.getElementById('maquinaLimiteHumedadSup').value);
     const unidad = document.getElementById('maquinaUnidad').value;
     const descripcion = document.getElementById('maquinaDescripcion').value;
     const ubicacion = document.getElementById('maquinaUbicacion').value;
     const calcularFH = document.getElementById('maquinaCalcularFH').checked;
     const parametroZ = parseFloat(document.getElementById('maquinaParametroZ').value) || 14.0;
 
-    console.log('Datos del formulario:', { nombre, tipo, limiteInf, limiteSup, unidad, descripcion, ubicacion, calcularFH, parametroZ });
-
     if (!nombre || !tipo || isNaN(limiteInf) || isNaN(limiteSup) || !unidad) {
-        showToast('Por favor, rellena todos los campos requeridos', 'warning');
-        console.warn('Campos incompletos');
-        return;
+        return { error: 'Por favor, rellena todos los campos requeridos' };
     }
 
     if (limiteInf >= limiteSup) {
-        showToast('El límite inferior debe ser menor que el superior', 'warning');
-        console.warn('Validación de límites fallida');
-        return;
+        return { error: 'El límite inferior de temperatura debe ser menor que el superior' };
+    }
+
+    if ((!isNaN(limiteHumedadInf) && isNaN(limiteHumedadSup)) || (isNaN(limiteHumedadInf) && !isNaN(limiteHumedadSup))) {
+        return { error: 'Debes completar ambos límites de humedad o ninguno' };
+    }
+
+    if (!isNaN(limiteHumedadInf) && !isNaN(limiteHumedadSup) && limiteHumedadInf >= limiteHumedadSup) {
+        return { error: 'El límite inferior de humedad debe ser menor que el superior' };
     }
 
     const datos = {
@@ -201,6 +242,23 @@ async function submitFormMaquina() {
         calcularFH: calcularFH,
         parametroZ: parametroZ
     };
+
+    if (!isNaN(limiteHumedadInf) && !isNaN(limiteHumedadSup)) {
+        datos.limiteInferiorHumedad = limiteHumedadInf;
+        datos.limiteSuperiorHumedad = limiteHumedadSup;
+    }
+
+    return { datos };
+}
+
+async function submitFormMaquina() {
+    console.log('Iniciando submitFormMaquina...');
+    const { datos, error } = obtenerDatosMaquinaDesdeFormulario();
+    if (error) {
+        showToast(error, 'warning');
+        console.warn(error);
+        return;
+    }
 
     console.log('Enviando datos:', JSON.stringify(datos));
 
@@ -240,6 +298,10 @@ async function cargarMaquinas() {
                         <span class="detail-value">${m.limiteInferior} - ${m.limiteSuperior} ${m.unidadMedida}</span>
                     </div>
                     <div class="detail">
+                        <span class="detail-label">Humedad</span>
+                        <span class="detail-value">${m.limiteInferiorHumedad != null && m.limiteSuperiorHumedad != null ? `${m.limiteInferiorHumedad} - ${m.limiteSuperiorHumedad} %` : 'No definido'}</span>
+                    </div>
+                    <div class="detail">
                         <span class="detail-label">Ubicación</span>
                         <span class="detail-value">${m.ubicacion || 'N/A'}</span>
                     </div>
@@ -269,6 +331,8 @@ async function editarMaquina(id) {
     document.getElementById('maquinaTipo').value = maquina.tipo;
     document.getElementById('maquinaLimiteInf').value = maquina.limiteInferior;
     document.getElementById('maquinaLimiteSup').value = maquina.limiteSuperior;
+    document.getElementById('maquinaLimiteHumedadInf').value = maquina.limiteInferiorHumedad || '';
+    document.getElementById('maquinaLimiteHumedadSup').value = maquina.limiteSuperiorHumedad || '';
     document.getElementById('maquinaUnidad').value = maquina.unidadMedida;
     document.getElementById('maquinaDescripcion').value = maquina.descripcion || '';
     document.getElementById('maquinaUbicacion').value = maquina.ubicacion || '';
@@ -277,16 +341,13 @@ async function editarMaquina(id) {
     document.querySelector('#formMaquina button').textContent = 'Actualizar Máquina';
     document.getElementById('formMaquina').onsubmit = async (e) => {
         e.preventDefault();
-        await actualizarMaquina(id, {
-            nombre: document.getElementById('maquinaNombre').value,
-            tipo: document.getElementById('maquinaTipo').value,
-            limiteInferior: parseFloat(document.getElementById('maquinaLimiteInf').value),
-            limiteSuperior: parseFloat(document.getElementById('maquinaLimiteSup').value),
-            unidadMedida: document.getElementById('maquinaUnidad').value,
-            descripcion: document.getElementById('maquinaDescripcion').value,
-            ubicacion: document.getElementById('maquinaUbicacion').value,
-            activa: true
-        });
+        const { datos, error } = obtenerDatosMaquinaDesdeFormulario();
+        if (error) {
+            showToast(error, 'warning');
+            console.warn(error);
+            return;
+        }
+        await actualizarMaquina(id, datos);
         document.getElementById('formMaquina').reset();
         document.querySelector('#formMaquina button').textContent = 'Crear Máquina';
         setupFormListeners();
@@ -448,6 +509,13 @@ async function cargarSelectsEnsayos() {
                 ensayosActivos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
         }
 
+        // Select para documento logtag/sensores (subida de documento)
+        const selectLogtagEnsayo = document.getElementById('logtagEnsayo');
+        if (selectLogtagEnsayo) {
+            selectLogtagEnsayo.innerHTML = '<option value="">Sin ensayo asociado</option>' +
+                ensayos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+        }
+
         // Select para correcciones (sincronizado)
         const selectCorrecciones = document.getElementById('correccionesEnsayo');
         const filtroCorrecciones = document.getElementById('filtroEnsayoCorrecciones');
@@ -512,6 +580,10 @@ async function cargarMaquinas() {
                     <div class="detail">
                         <span class="detail-label">Rango</span>
                         <span class="detail-value">${m.limiteInferior} - ${m.limiteSuperior} ${m.unidadMedida}</span>
+                    </div>
+                    <div class="detail">
+                        <span class="detail-label">Humedad</span>
+                        <span class="detail-value">${m.limiteInferiorHumedad != null && m.limiteSuperiorHumedad != null ? `${m.limiteInferiorHumedad} - ${m.limiteSuperiorHumedad} %` : 'No definido'}</span>
                     </div>
                     <div class="detail">
                         <span class="detail-label">Ubicación</span>
@@ -782,8 +854,63 @@ async function cargarAnalisis() {
                 document.getElementById('statFHContainer').style.display = 'none';
             }
 
-            // Gráfico de distribución
+            // Obtener máquina asociada para límites (mejor detección: analisis -> ensayo.maquina -> obtenerMaquina)
+            try {
+                // Preferir objeto máquina si viene en el análisis
+                if (analisis && analisis.maquina) {
+                    const m = analisis.maquina;
+                    maquinaLimites = {
+                        limiteInferior: parseNumericValue(m.limiteInferior),
+                        limiteSuperior: parseNumericValue(m.limiteSuperior),
+                        limiteInferiorHumedad: parseNumericValue(m.limiteInferiorHumedad),
+                        limiteSuperiorHumedad: parseNumericValue(m.limiteSuperiorHumedad)
+                    };
+                } else {
+                    const ensayo = await obtenerEnsayo(parseInt(ensayoId));
+                    // Si el ensayo trae la máquina embebida
+                    if (ensayo && ensayo.maquina) {
+                        const m = ensayo.maquina;
+                        maquinaLimites = {
+                            limiteInferior: parseNumericValue(m.limiteInferior),
+                            limiteSuperior: parseNumericValue(m.limiteSuperior),
+                            limiteInferiorHumedad: parseNumericValue(m.limiteInferiorHumedad),
+                            limiteSuperiorHumedad: parseNumericValue(m.limiteSuperiorHumedad)
+                        };
+                    } else if (ensayo && ensayo.maquinaId) {
+                        const maquina = await obtenerMaquina(ensayo.maquinaId);
+                        if (maquina) {
+                            maquinaLimites = {
+                                limiteInferior: parseNumericValue(maquina.limiteInferior),
+                                limiteSuperior: parseNumericValue(maquina.limiteSuperior),
+                                limiteInferiorHumedad: parseNumericValue(maquina.limiteInferiorHumedad),
+                                limiteSuperiorHumedad: parseNumericValue(maquina.limiteSuperiorHumedad)
+                            };
+                        } else {
+                            maquinaLimites = null;
+                        }
+                    } else {
+                        maquinaLimites = null;
+                    }
+                }
+                // Normalizar: si uno de los límites no es numérico, marcar undefined
+                if (maquinaLimites) {
+                    if (isNaN(maquinaLimites.limiteInferior)) maquinaLimites.limiteInferior = undefined;
+                    if (isNaN(maquinaLimites.limiteSuperior)) maquinaLimites.limiteSuperior = undefined;
+                    if (isNaN(maquinaLimites.limiteInferiorHumedad)) maquinaLimites.limiteInferiorHumedad = undefined;
+                    if (isNaN(maquinaLimites.limiteSuperiorHumedad)) maquinaLimites.limiteSuperiorHumedad = undefined;
+                }
+            } catch (e) {
+                console.warn('No se pudo obtener máquina para límites:', e);
+                maquinaLimites = null;
+            }
+
+            // Restablecer cualquier filtro anterior y marcar anomalías usando los límites actuales
+            datosFiltradosActuales = null;
+            window.datosFiltradosActuales = null;
+            datosAnalisisOriginales = marcarDatosAnormales(datosAnalisisOriginales);
             const datosActivos = obtenerDatosAnalisisActivos();
+
+            // Gráfico de distribución
             crearGraficoDistribucion(datosActivos, calcularAnalisis(datosActivos).media);
 
             // Gráfico de anormales
@@ -792,6 +919,7 @@ async function cargarAnalisis() {
             // Nuevas gráficas
             crearGraficoBoxplot(datosActivos, calcularAnalisis(datosActivos));
             crearGraficoCuartiles(calcularAnalisis(datosActivos));
+
             crearGraficoTemporal(datosActivos);
 
             // Análisis por sensor
@@ -906,7 +1034,10 @@ async function onAnalisisDocumentoChange() {
             return;
         }
 
+        datosFiltradosActuales = null;
+        window.datosFiltradosActuales = null;
         datosAnalisisOriginales = [...datosFiltrados];
+        datosAnalisisOriginales = marcarDatosAnormales(datosAnalisisOriginales);
 
         // Aplicar selección actual de sensores a los datos del documento
         const datosVisibles = filtrarDatosPorSensoresSeleccionados(datosAnalisisOriginales);
@@ -1229,56 +1360,109 @@ function crearGraficoTemporal(datos) {
     const ctx = document.getElementById('chartTemporal');
     if (!ctx) return;
 
-    // Ordenar por timestamp
-    const datosOrdenados = [...datos].sort((a, b) => 
-        new Date(a.timestamp) - new Date(b.timestamp)
-    );
+    const datosOrdenados = [...datos].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const datosPorSensor = {};
+    const timestampsSet = new Set();
 
-    const labels = datosOrdenados.map(d => {
-        const fecha = new Date(d.timestamp);
+    datosOrdenados.forEach(d => {
+        const sensor = String(d.sensor || 'Sin Sensor').trim();
+        if (!datosPorSensor[sensor]) {
+            datosPorSensor[sensor] = [];
+        }
+        datosPorSensor[sensor].push(d);
+        timestampsSet.add(d.timestamp);
+    });
+
+    const timestamps = [...timestampsSet].sort((a, b) => new Date(a) - new Date(b));
+    const labels = timestamps.map(ts => {
+        const fecha = new Date(ts);
         return fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     });
-    const valores = datosOrdenados.map(d => d.valor);
-    const colores = datosOrdenados.map(d => d.anormal ? 
-        'rgba(231, 76, 60, 0.8)' : 'rgba(52, 152, 219, 0.8)'
-    );
+
+    const colores = CONFIG.chartColors;
+    const datasets = Object.keys(datosPorSensor).map((sensor, index) => {
+        const datosSensor = datosPorSensor[sensor];
+        const datosMap = new Map(datosSensor.map(d => [d.timestamp, d]));
+        const esHumedad = esSensorHumedad(sensor);
+        const tipo = esHumedad ? 'Humedad' : 'Temperatura';
+        const color = colores[index % colores.length];
+
+        return {
+            label: `${sensor} (${tipo})`,
+            data: timestamps.map(ts => datosMap.has(ts) ? datosMap.get(ts).valor : null),
+            borderColor: color,
+            backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+            pointBackgroundColor: timestamps.map(ts => {
+                const dato = datosMap.get(ts);
+                if (!dato) return 'rgba(0, 0, 0, 0)';
+                return dato.anormal ? 'rgba(231, 76, 60, 0.8)' : color;
+            }),
+            pointBorderColor: timestamps.map(ts => {
+                const dato = datosMap.get(ts);
+                if (!dato) return 'rgba(0, 0, 0, 0)';
+                return dato.anormal ? 'rgba(231, 76, 60, 0.8)' : color;
+            }),
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: false,
+            spanGaps: true,
+            yAxisID: esHumedad ? 'yHumedad' : 'yTemperatura'
+        };
+    });
 
     if (chartTemporal) chartTemporal.destroy();
+
+    const chartAnnotationPlugin = obtenerPluginAnnotation();
+    const chartPlugins = chartAnnotationPlugin ? [chartAnnotationPlugin] : [];
+
+    if (maquinaLimites) {
+        console.debug('crearGraficoTemporal - maquinaLimites detectados:', maquinaLimites);
+        if (maquinaLimites.limiteInferior !== undefined) {
+            datasets.push(crearDatasetLimite(maquinaLimites.limiteInferior, 'Límite Inf', 'rgba(46, 204, 113, 1)', labels, 'yTemperatura'));
+        }
+        if (maquinaLimites.limiteSuperior !== undefined) {
+            datasets.push(crearDatasetLimite(maquinaLimites.limiteSuperior, 'Límite Sup', 'rgba(231, 76, 60, 1)', labels, 'yTemperatura'));
+        }
+        if (maquinaLimites.limiteInferiorHumedad !== undefined) {
+            datasets.push(crearDatasetLimite(maquinaLimites.limiteInferiorHumedad, 'Límite Inf Humedad', 'rgba(46, 204, 113, 1)', labels, 'yHumedad'));
+        }
+        if (maquinaLimites.limiteSuperiorHumedad !== undefined) {
+            datasets.push(crearDatasetLimite(maquinaLimites.limiteSuperiorHumedad, 'Límite Sup Humedad', 'rgba(231, 76, 60, 1)', labels, 'yHumedad'));
+        }
+    }
+    console.debug('crearGraficoTemporal - datasets count:', datasets.length);
 
     chartTemporal = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Temperatura',
-                data: valores,
-                borderColor: 'rgba(52, 152, 219, 1)',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                pointBackgroundColor: colores,
-                pointBorderColor: colores,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                borderWidth: 2,
-                tension: 0.4
-            }]
+            datasets: datasets
         },
+        plugins: chartPlugins,
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            plugins: {
+            plugins: Object.assign({
                 legend: { display: true },
                 tooltip: {
                     callbacks: {
-                        afterLabel: function(context) {
-                            const dato = datosOrdenados[context.dataIndex];
-                            return [
-                                `Sensor: ${dato.sensor || 'N/A'}`,
-                                `Estado: ${dato.anormal ? 'Anormal' : 'Normal'}`
-                            ];
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(4) : 'N/A'}`;
                         }
                     }
                 }
-            },
+            }, (maquinaLimites ? {
+                annotation: {
+                    annotations: Object.assign({},
+                        maquinaLimites.limiteInferior !== undefined ? { limiteInferior: construirAnotacionLimite(maquinaLimites.limiteInferior, 'yTemperatura', 'Límite Inf') } : {},
+                        maquinaLimites.limiteSuperior !== undefined ? { limiteSuperior: construirAnotacionLimite(maquinaLimites.limiteSuperior, 'yTemperatura', 'Límite Sup') } : {},
+                        maquinaLimites.limiteInferiorHumedad !== undefined ? { limiteInferiorHumedad: construirAnotacionLimite(maquinaLimites.limiteInferiorHumedad, 'yHumedad', 'Límite Inf Humedad') } : {},
+                        maquinaLimites.limiteSuperiorHumedad !== undefined ? { limiteSuperiorHumedad: construirAnotacionLimite(maquinaLimites.limiteSuperiorHumedad, 'yHumedad', 'Límite Sup Humedad') } : {}
+                    )
+                }
+            } : {})),
             scales: {
                 x: {
                     display: true,
@@ -1291,17 +1475,32 @@ function crearGraficoTemporal(datos) {
                         minRotation: 45
                     }
                 },
-                y: {
+                yTemperatura: {
+                    type: 'linear',
                     display: true,
+                    position: 'left',
                     title: {
                         display: true,
-                        text: 'Valor'
+                        text: 'Temperatura (°C)'
+                    }
+                },
+                yHumedad: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Humedad (%)'
+                    },
+                    grid: {
+                        drawOnChartArea: false
                     }
                 }
             }
         }
     });
 }
+
 
 function crearAnalisisPorSensor(datos, mediaGeneral) {
     const container = document.getElementById('analisisSensores');
@@ -1451,12 +1650,11 @@ function agruparDatosPorSensorBase(datos) {
     return grupos;
 }
 
-function construirDatosGraficaPorGrupo(grupo, filtro) {
-    const sensoresSeleccionadosEnGrupo = grupo.sensores.filter(sensor => sensoresSeleccionados.has(sensor));
+function construirDatosGraficaPorTipo(grupo, sensoresTipo, filtro) {
     const datosPorSensor = {};
     const timestampsSet = new Set();
 
-    sensoresSeleccionadosEnGrupo.forEach(sensor => {
+    sensoresTipo.forEach(sensor => {
         let datosSensor = grupo.datosPorSensor[sensor] || [];
         if (filtro) {
             datosSensor = filtrarDatosPorHora(datosSensor, filtro.inicio, filtro.fin);
@@ -1470,20 +1668,16 @@ function construirDatosGraficaPorGrupo(grupo, filtro) {
     const labels = timestamps.map(formatDate);
     const colores = CONFIG.chartColors;
 
-    const datasets = sensoresSeleccionadosEnGrupo.map((sensor, index) => {
+    const datasets = sensoresTipo.map((sensor, index) => {
         const datosSensor = datosPorSensor[sensor] || [];
-        const valoresPorTimestamp = new Map(datosSensor.map(d => [d.timestamp, d.valor]));
-        const data = timestamps.map(ts => valoresPorTimestamp.has(ts) ? valoresPorTimestamp.get(ts) : null);
+        const datosMap = new Map(datosSensor.map(d => [d.timestamp, d]));
         const esHumedad = esSensorHumedad(sensor);
         const tipo = esHumedad ? 'Humedad' : 'Temperatura';
-        const label = sensoresSeleccionadosEnGrupo.length > 1
-            ? `${tipo} (${sensor})`
-            : tipo;
         const color = colores[index % colores.length];
 
         return {
-            label,
-            data,
+            label: `${sensor} (${tipo})`,
+            data: timestamps.map(ts => datosMap.has(ts) ? datosMap.get(ts).valor : null),
             borderColor: color,
             backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
             borderWidth: 2,
@@ -1528,6 +1722,75 @@ function obtenerSensoresConDatos(datos) {
         .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 }
 
+// Construye configuración de anotación para una línea horizontal en la escala indicada
+function construirAnotacionLimite(valor, escalaId, etiqueta, borderColor) {
+    if (valor === null || valor === undefined || isNaN(Number(valor))) return null;
+    const color = borderColor || (etiqueta && etiqueta.toLowerCase().includes('inf') ? 'rgba(46, 204, 113, 1)' : 'rgba(231, 76, 60, 1)');
+    const backgroundColor = borderColor ? borderColor.replace('1)', '0.8)') : (etiqueta && etiqueta.toLowerCase().includes('inf') ? 'rgba(46, 204, 113, 0.8)' : 'rgba(231, 76, 60, 0.8)');
+    return {
+        type: 'line',
+        scaleID: escalaId || 'y',
+        mode: 'horizontal',
+        value: Number(valor),
+        yMin: Number(valor),
+        yMax: Number(valor),
+        borderColor: color,
+        borderWidth: 2,
+        borderDash: [6, 4],
+        drawTime: 'afterDatasetsDraw',
+        label: {
+            enabled: true,
+            content: etiqueta || 'Límite Máquina',
+            position: 'end',
+            backgroundColor: backgroundColor,
+            color: '#ffffff',
+            font: { weight: 'bold' }
+        }
+    };
+}
+
+function crearDatasetLimite(valor, etiqueta, color, labels, yAxisID = 'yTemperatura') {
+    if (valor === null || valor === undefined || isNaN(Number(valor))) return null;
+    return {
+        label: etiqueta,
+        data: labels.map(() => Number(valor)),
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 2,
+        borderDash: [8, 4],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        tension: 0,
+        fill: false,
+        yAxisID,
+        spanGaps: true,
+        order: 999
+    };
+}
+
+function crearDatasetLimiteEjeX(valor, etiqueta, color, yMin, yMax, xAxisID = 'x') {
+    const xValue = new Date(valor);
+    if (isNaN(xValue.getTime())) return null;
+    return {
+        label: etiqueta,
+        data: [
+            { x: xValue, y: yMin },
+            { x: xValue, y: yMax }
+        ],
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 2,
+        borderDash: [8, 4],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        tension: 0,
+        fill: false,
+        xAxisID,
+        spanGaps: true,
+        order: 999
+    };
+}
+
 function crearSelectoresSensores(datos) {
     const sensores = obtenerSensoresConDatos(datos);
     const sensoresPrevios = sensoresDisponibles;
@@ -1542,7 +1805,7 @@ function crearSelectoresSensores(datos) {
         sensoresAutorizados.forEach(s => sensoresSeleccionados.add(s));
     }
 
-    poblarSelectorSensoresExclusion(datos);
+    poblarSelectorSensoresExclusion(datosAnalisisOriginales || datos);
     
     const container = document.getElementById('selectoresSensores');
     if (!container) return;
@@ -1557,6 +1820,7 @@ function crearSelectoresSensores(datos) {
     container.innerHTML = sensoresAutorizados.map((sensor, index) => {
         const color = colores[index % colores.length];
         const isChecked = sensoresSeleccionados.has(sensor);
+        const sensorEscaped = JSON.stringify(sensor);
         
         return `
         <label style="
@@ -1576,7 +1840,7 @@ function crearSelectoresSensores(datos) {
             <input type="checkbox" 
                    value="${sensor}" 
                    ${isChecked ? 'checked' : ''}
-                   onchange="toggleSensor('${sensor}')"
+                   onchange="toggleSensor(${sensorEscaped})"
                    style="width: 16px; height: 16px; cursor: pointer;">
             <span style="
                 width: 12px; 
@@ -1628,10 +1892,7 @@ function crearGraficasPorSensor(datos) {
     // Refrescar los selectores de sensores antes de filtrar los datos activos
     crearSelectoresSensores(datosFuente);
 
-    let datosActivos = filtrarDatosPorSensoresSeleccionados(datosFuente);
-    if (!datosActivos || datosActivos.length === 0) {
-        datosActivos = datosFuente;
-    }
+    const datosActivos = filtrarDatosPorSensoresSeleccionados(datosFuente);
 
     console.log('crearGraficasPorSensor llamada con', datosActivos.length, 'datos');
     const sensoresValidos = obtenerSensoresConDatos(datosActivos);
@@ -1691,6 +1952,9 @@ function crearGraficasIndividuales(datos) {
     
     let html = '';
     gruposSeleccionados.forEach((grupo, index) => {
+        const sensoresTemp = grupo.sensores.filter(sensor => sensoresSeleccionados.has(sensor) && !esSensorHumedad(sensor));
+        const sensoresHum = grupo.sensores.filter(sensor => sensoresSeleccionados.has(sensor) && esSensorHumedad(sensor));
+
         html += `
             <div class="chart-container" style="margin-bottom: 20px; position: relative;">
                 <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -1712,122 +1976,160 @@ function crearGraficasIndividuales(datos) {
                 <p style="font-size: 12px; color: #888; margin: 0 0 10px 0;">
                     🔍 <em>Seleccionar: Mantén presionado y arrastra | Rueda del ratón: Zoom | Arrastrar: Mover | Doble clic: Restablecer</em>
                 </p>
-                <canvas id="chartSensor${index}"></canvas>
+                <div style="display: grid; gap: 22px;">
+                    <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px;">
+                        <h5 style="margin: 0 0 8px 0;">Temperatura</h5>
+                        ${sensoresTemp.length > 0 ? `<canvas id="chartSensorTemp${index}"></canvas>` : `<p style="margin: 0; color: #888;">No hay datos de temperatura seleccionados para este sensor.</p>`}
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px;">
+                        <h5 style="margin: 0 0 8px 0;">Humedad</h5>
+                        ${sensoresHum.length > 0 ? `<canvas id="chartSensorHum${index}"></canvas>` : `<p style="margin: 0; color: #888;">No hay datos de humedad seleccionados para este sensor.</p>`}
+                    </div>
+                </div>
             </div>
         `;
     });
     
     container.innerHTML = html;
     
-    console.log('HTML insertado, creando gráficas...');
-    
-    setTimeout(() => {
-        gruposSeleccionados.forEach((grupo, index) => {
-            const chartData = construirDatosGraficaPorGrupo(grupo, filtrosGraficas.sensores && filtrosGraficas.sensores[grupo.baseSensor] ? filtrosGraficas.sensores[grupo.baseSensor] : null);
-            const ctx = document.getElementById(`chartSensor${index}`);
-            if (!ctx) {
-                console.error(`Canvas chartSensor${index} no encontrado`);
-                return;
-            }
-            
-            const chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.labels,
-                    datasets: chartData.datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(4) : 'N/A'}`;
-                                }
-                            }
-                        },
-                        zoom: {
-                            zoom: {
-                                wheel: {
-                                    enabled: true,
-                                    speed: 0.1
-                                },
-                                pinch: {
-                                    enabled: true
-                                },
-                                drag: {
-                                    enabled: true,
-                                    backgroundColor: 'rgba(52, 152, 219, 0.3)',
-                                    borderColor: 'rgba(52, 152, 219, 0.8)',
-                                    borderWidth: 1,
-                                    threshold: 10
-                                },
-                                mode: 'xy'
-                            },
-                            pan: {
-                                enabled: true,
-                                mode: 'xy'
-                            },
-                            limits: {
-                                y: {min: 'original', max: 'original'},
-                                x: {min: 'original', max: 'original'}
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Tiempo'
-                            },
-                            ticks: {
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        },
-                        yTemperatura: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Temperatura (°C)'
-                            }
-                        },
-                        yHumedad: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: 'Humedad (%)'
-                            },
-                            grid: {
-                                drawOnChartArea: false
-                            }
+    console.log('HTML insertado, creando gráficas por grupos de sensores en bloques...');
+
+    const chartAnnotationPlugin = obtenerPluginAnnotation();
+    const grupos = gruposSeleccionados;
+    let grupoIndex = 0;
+
+    function renderGrupo() {
+        if (grupoIndex >= grupos.length) {
+            console.log('Todas las gráficas por sensor fueron creadas');
+            return;
+        }
+
+        const grupo = grupos[grupoIndex];
+        const filtro = filtrosGraficas.sensores && filtrosGraficas.sensores[grupo.baseSensor] ? filtrosGraficas.sensores[grupo.baseSensor] : null;
+        const sensoresTemp = grupo.sensores.filter(sensor => sensoresSeleccionados.has(sensor) && !esSensorHumedad(sensor));
+        const sensoresHum = grupo.sensores.filter(sensor => sensoresSeleccionados.has(sensor) && esSensorHumedad(sensor));
+
+        if (sensoresTemp.length > 0) {
+            const chartDataTemp = construirDatosGraficaPorTipo(grupo, sensoresTemp, filtro);
+            const ctxTemp = document.getElementById(`chartSensorTemp${grupoIndex}`);
+            if (ctxTemp) {
+                const pluginsTemp = {
+                    legend: { display: true, position: 'top' },
+                    tooltip: { callbacks: { label: function(context) { return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(4) : 'N/A'}`; } } },
+                    zoom: {
+                        zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, drag: { enabled: true, backgroundColor: 'rgba(52, 152, 219, 0.3)', borderColor: 'rgba(52, 152, 219, 0.8)', borderWidth: 1, threshold: 10 }, mode: 'xy' },
+                        pan: { enabled: true, mode: 'xy' },
+                        limits: { y: {min: 'original', max: 'original'}, x: {min: 'original', max: 'original'} }
+                    }
+                };
+
+                if (maquinaLimites) {
+                    console.debug(`crearGraficasPorSensor[${grupoIndex}] - maquinaLimites:`, maquinaLimites);
+                    if (maquinaLimites.limiteInferior !== undefined) {
+                        chartDataTemp.datasets.push(crearDatasetLimite(maquinaLimites.limiteInferior, 'Límite Inf', 'rgba(46, 204, 113, 1)', chartDataTemp.labels, 'yTemperatura'));
+                    }
+                    if (maquinaLimites.limiteSuperior !== undefined) {
+                        chartDataTemp.datasets.push(crearDatasetLimite(maquinaLimites.limiteSuperior, 'Límite Sup', 'rgba(231, 76, 60, 1)', chartDataTemp.labels, 'yTemperatura'));
+                    }
+                    pluginsTemp.annotation = {
+                        annotations: Object.assign({},
+                            maquinaLimites.limiteInferior !== undefined ? { limiteInfSensor: construirAnotacionLimite(maquinaLimites.limiteInferior, 'yTemperatura', 'Límite Inf', 'rgba(46, 204, 113, 1)') } : {},
+                            maquinaLimites.limiteSuperior !== undefined ? { limiteSupSensor: construirAnotacionLimite(maquinaLimites.limiteSuperior, 'yTemperatura', 'Límite Sup', 'rgba(231, 76, 60, 1)') } : {}
+                        )
+                    };
+                }
+
+                const chartTemp = new Chart(ctxTemp, {
+                    type: 'line',
+                    data: { labels: chartDataTemp.labels, datasets: chartDataTemp.datasets },
+                    plugins: chartAnnotationPlugin ? [chartAnnotationPlugin] : [],
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: { intersect: false, mode: 'index' },
+                        plugins: pluginsTemp,
+                        scales: {
+                            x: { title: { display: true, text: 'Tiempo' }, ticks: { maxRotation: 45, minRotation: 45 } },
+                            yTemperatura: { type: 'linear', display: true, title: { display: true, text: 'Temperatura (°C)' } }
                         }
                     }
+                });
+                chartsSensoresIndividuales.push(chartTemp);
+            }
+        }
+
+        if (sensoresHum.length > 0) {
+            const chartDataHum = construirDatosGraficaPorTipo(grupo, sensoresHum, filtro);
+            const ctxHum = document.getElementById(`chartSensorHum${grupoIndex}`);
+            if (ctxHum) {
+                const pluginsHum = {
+                    legend: { display: true, position: 'top' },
+                    tooltip: { callbacks: { label: function(context) { return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(4) : 'N/A'}`; } } },
+                    zoom: {
+                        zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, drag: { enabled: true, backgroundColor: 'rgba(52, 152, 219, 0.3)', borderColor: 'rgba(52, 152, 219, 0.8)', borderWidth: 1, threshold: 10 }, mode: 'xy' },
+                        pan: { enabled: true, mode: 'xy' },
+                        limits: { y: {min: 'original', max: 'original'}, x: {min: 'original', max: 'original'} }
+                    }
+                };
+
+                if (maquinaLimites) {
+                    const humLimitDatasets = [];
+                    if (maquinaLimites.limiteInferiorHumedad !== undefined) {
+                        const limiteInfHum = crearDatasetLimite(maquinaLimites.limiteInferiorHumedad, 'Límite Inf Humedad', 'rgba(46, 204, 113, 1)', chartDataHum.labels, 'y');
+                        if (limiteInfHum) humLimitDatasets.push(limiteInfHum);
+                    }
+                    if (maquinaLimites.limiteSuperiorHumedad !== undefined) {
+                        const limiteSupHum = crearDatasetLimite(maquinaLimites.limiteSuperiorHumedad, 'Límite Sup Humedad', 'rgba(231, 76, 60, 1)', chartDataHum.labels, 'y');
+                        if (limiteSupHum) humLimitDatasets.push(limiteSupHum);
+                    }
+                    if (humLimitDatasets.length > 0) {
+                        chartDataHum.datasets.push(...humLimitDatasets);
+                    }
+                    pluginsHum.annotation = {
+                        annotations: Object.assign({},
+                            maquinaLimites.limiteInferiorHumedad !== undefined ? { limiteInfHumedad: construirAnotacionLimite(maquinaLimites.limiteInferiorHumedad, 'y', 'Límite Inf Humedad', 'rgba(46, 204, 113, 1)') } : {},
+                            maquinaLimites.limiteSuperiorHumedad !== undefined ? { limiteSupHumedad: construirAnotacionLimite(maquinaLimites.limiteSuperiorHumedad, 'y', 'Límite Sup Humedad', 'rgba(231, 76, 60, 1)') } : {}
+                        )
+                    };
                 }
-            });
-            
-            console.log(`Gráfica creada para serial ${grupo.baseSensor}`);
-            chartsSensoresIndividuales.push(chart);
-        });
-    }, 100);
+
+                const chartHum = new Chart(ctxHum, {
+                    type: 'line',
+                    data: {
+                        labels: chartDataHum.labels,
+                        datasets: chartDataHum.datasets
+                    },
+                    plugins: chartAnnotationPlugin ? [chartAnnotationPlugin] : [],
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: { intersect: false, mode: 'index' },
+                        plugins: pluginsHum,
+                        scales: {
+                            x: { title: { display: true, text: 'Tiempo' }, ticks: { maxRotation: 45, minRotation: 45 } },
+                            y: { type: 'linear', display: true, title: { display: true, text: 'Humedad (%)' } }
+                        }
+                    }
+                });
+                chartsSensoresIndividuales.push(chartHum);
+            }
+        }
+
+        console.log(`Gráficas creadas para serial ${grupo.baseSensor}`);
+        grupoIndex += 1;
+        setTimeout(renderGrupo, 25);
+    }
+
+    renderGrupo();
 }
 
 function resetZoom(index) {
-    if (chartsSensoresIndividuales[index]) {
-        chartsSensoresIndividuales[index].resetZoom();
+    const baseIndex = index * 2;
+    if (chartsSensoresIndividuales[baseIndex]) {
+        chartsSensoresIndividuales[baseIndex].resetZoom();
+    }
+    if (chartsSensoresIndividuales[baseIndex + 1]) {
+        chartsSensoresIndividuales[baseIndex + 1].resetZoom();
     }
 }
 
@@ -1899,102 +2201,101 @@ function crearGraficaComparacion(datos) {
         });
     });
     
-    const todosLosTimestamps = [...new Set(todosLosDatos.map(d => d.timestamp))].sort();
+    const todosLosTimestamps = [...new Set(todosLosDatos.map(d => d.timestamp))].sort((a, b) => new Date(a) - new Date(b));
     const labels = todosLosTimestamps.map(t => formatDate(t));
-    
+
+    if (labels.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 40px; text-align: center; background: rgba(241, 196, 15, 0.1); border-radius: 12px; border: 2px dashed rgba(241, 196, 15, 0.3);">
+                <div style="font-size: 48px; margin-bottom: 15px;">ℹ️</div>
+                <h4 style="color: #f1c40f; margin-bottom: 10px;">No hay datos para comparar</h4>
+                <p style="color: #888; margin: 0;">Selecciona sensores con datos disponibles para activar el modo comparación.</p>
+            </div>
+        `;
+        return;
+    }
+
     // Crear datasets para cada sensor
     const colores = CONFIG.chartColors;
     const datasets = sensores.map((sensor, index) => {
-        const datosSensor = datosPorSensor[sensor].sort((a, b) => 
-            new Date(a.timestamp) - new Date(b.timestamp)
-        );
-        
+        const datosSensor = datosPorSensor[sensor] || [];
+        const datosMap = new Map(datosSensor.map(d => [d.timestamp, d]));
+        const esHumedad = esSensorHumedad(sensor);
+        const tipo = esHumedad ? 'Humedad' : 'Temperatura';
         const color = colores[index % colores.length];
-        
+
         return {
-            label: sensor,
-            data: datosSensor.map(d => d.valor),
+            label: `${sensor} (${tipo})`,
+            data: todosLosTimestamps.map(ts => datosMap.has(ts) ? datosMap.get(ts).valor : null),
             borderColor: color,
             backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
             borderWidth: 2,
             pointRadius: 3,
             pointHoverRadius: 5,
             tension: 0.3,
-            fill: false
+            fill: false,
+            yAxisID: esHumedad ? 'yHumedad' : 'yTemperatura'
         };
     });
     
+    // Prepare plugins for comparison chart
+    const pluginsComp = {
+        legend: { display: true, position: 'top' },
+        tooltip: { callbacks: { label: function(context) { return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(4) : 'N/A'}`; } } },
+        zoom: {
+            zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, drag: { enabled: true, backgroundColor: 'rgba(52, 152, 219, 0.3)', borderColor: 'rgba(52, 152, 219, 0.8)', borderWidth: 1, threshold: 10 }, mode: 'xy' },
+            pan: { enabled: true, mode: 'xy' },
+            limits: { y: {min: 'original', max: 'original'}, x: {min: 'original', max: 'original'} }
+        }
+    };
+
+    if (maquinaLimites) {
+        const temperaturaLimitDatasets = [];
+        const tieneHumedad = sensores.some(sensor => esSensorHumedad(sensor));
+
+        if (maquinaLimites.limiteInferior !== undefined) {
+            const limiteInf = crearDatasetLimite(maquinaLimites.limiteInferior, 'Límite Inf', 'rgba(46, 204, 113, 1)', labels, 'yTemperatura');
+            if (limiteInf) temperaturaLimitDatasets.push(limiteInf);
+        }
+        if (maquinaLimites.limiteSuperior !== undefined) {
+            const limiteSup = crearDatasetLimite(maquinaLimites.limiteSuperior, 'Límite Sup', 'rgba(231, 76, 60, 1)', labels, 'yTemperatura');
+            if (limiteSup) temperaturaLimitDatasets.push(limiteSup);
+        }
+
+        if (temperaturaLimitDatasets.length > 0) {
+            datasets.push(...temperaturaLimitDatasets);
+        }
+
+        if (tieneHumedad) {
+            const humedadLimitDatasets = [];
+            if (maquinaLimites.limiteInferiorHumedad !== undefined) {
+                const limiteInfHum = crearDatasetLimite(maquinaLimites.limiteInferiorHumedad, 'Límite Inf Humedad', 'rgba(46, 204, 113, 1)', labels, 'yHumedad');
+                if (limiteInfHum) humedadLimitDatasets.push(limiteInfHum);
+            }
+            if (maquinaLimites.limiteSuperiorHumedad !== undefined) {
+                const limiteSupHum = crearDatasetLimite(maquinaLimites.limiteSuperiorHumedad, 'Límite Sup Humedad', 'rgba(231, 76, 60, 1)', labels, 'yHumedad');
+                if (limiteSupHum) humedadLimitDatasets.push(limiteSupHum);
+            }
+            if (humedadLimitDatasets.length > 0) {
+                datasets.push(...humedadLimitDatasets);
+            }
+        }
+    }
+
+    const chartAnnotationPlugin = obtenerPluginAnnotation();
     const chart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: datosPorSensor[sensores[0]].map(d => formatDate(d.timestamp)),
-            datasets: datasets
-        },
+        data: { labels: labels, datasets: datasets },
+        plugins: chartAnnotationPlugin ? [chartAnnotationPlugin] : [],
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.dataset.label}: ${context.parsed.y.toFixed(4)}`;
-                        }
-                    }
-                },
-                zoom: {
-                    zoom: {
-                        wheel: {
-                            enabled: true,
-                            speed: 0.1
-                        },
-                        pinch: {
-                            enabled: true
-                        },
-                        drag: {
-                            enabled: true,
-                            backgroundColor: 'rgba(52, 152, 219, 0.3)',
-                            borderColor: 'rgba(52, 152, 219, 0.8)',
-                            borderWidth: 1,
-                            threshold: 10
-                        },
-                        mode: 'xy'
-                    },
-                    pan: {
-                        enabled: true,
-                        mode: 'xy'
-                    },
-                    limits: {
-                        y: {min: 'original', max: 'original'},
-                        x: {min: 'original', max: 'original'}
-                    }
-                }
-            },
+            interaction: { intersect: false, mode: 'index' },
+            plugins: pluginsComp,
             scales: {
-                y: {
-                    beginAtZero: false,
-                    title: {
-                        display: true,
-                        text: 'Valor'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Tiempo'
-                    },
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
-                }
+                yTemperatura: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Temperatura (°C)' } },
+                yHumedad: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Humedad (%)' }, grid: { drawOnChartArea: false } },
+                x: { title: { display: true, text: 'Tiempo' }, ticks: { maxRotation: 45, minRotation: 45 } }
             }
         }
     });
@@ -2912,27 +3213,48 @@ function calcularDiasCalibracion(sensor) {
 
 async function submitFormSensor(e) {
     e.preventDefault();
-    
+
     const getVal = id => document.getElementById(id) ? document.getElementById(id).value : null;
-    const datos = {
+    const sensor = {
         codigo: (getVal('sensorCodigo') || '').trim(),
         tipoSonda: getVal('sensorTipoSonda') || null,
-        // modelo y fabricante eliminados del formulario
         frecuenciaCalibracionDias: parseInt(getVal('sensorFrecuencia')) || 365,
-        // Optional legacy fields: try to read if present
         rangoMinimo: getVal('sensorRangoMin') ? parseFloat(getVal('sensorRangoMin')) : null,
         rangoMaximo: getVal('sensorRangoMax') ? parseFloat(getVal('sensorRangoMax')) : null,
         precision: getVal('sensorPrecision') ? parseFloat(getVal('sensorPrecision')) : null,
         ultimaCalibracion: getVal('sensorUltimaCalibracion') || null,
-        notas: (getVal('sensorNotas') || '').trim() || null,
+        observaciones: (getVal('sensorNotas') || '').trim() || null,
         activo: true
     };
 
-    console.log('Creando sensor:', datos);
-    
+    const archivo = document.getElementById('sensorArchivo')?.files?.[0] || null;
+    const archivoTemperatura = document.getElementById('sensorArchivoTemperatura')?.files?.[0] || null;
+    const archivoHumedad = document.getElementById('sensorArchivoHumedad')?.files?.[0] || null;
+
+    if (!archivo && !archivoTemperatura && !archivoHumedad) {
+        showToast('Sube al menos un archivo de calibración (temperatura o humedad).', 'warning');
+        return;
+    }
+
     try {
-        const sensor = await crearSensor(datos);
-        console.log('Sensor creado:', sensor);
+        const formData = new FormData();
+        formData.append('sensor', JSON.stringify(sensor));
+        if (archivoTemperatura) {
+            formData.append('archivoTemperatura', archivoTemperatura);
+        }
+        if (archivo) {
+            formData.append('archivo', archivo);
+        }
+        if (archivoHumedad) {
+            formData.append('archivoHumedad', archivoHumedad);
+        }
+        if (getVal('sensorSubidoPor')) {
+            formData.append('subidoPor', getVal('sensorSubidoPor'));
+        }
+        formData.append('descripcion', 'Alta de sensor con calibración');
+
+        const respuesta = await api.uploadMultipart('/sensores/crear-con-calibracion', formData);
+        console.log('Sensor creado:', respuesta);
         showToast('Sensor registrado correctamente', 'success');
         document.getElementById('formSensor').reset();
         await cargarSensores();
@@ -3466,6 +3788,11 @@ function agregarLog(mensaje) {
 
 // Setup form listener para configuración
 document.addEventListener('DOMContentLoaded', async () => {
+    if (window.__SKIP_MAIN_APP_INITIALIZATION === true || document.body?.classList?.contains('reporte-html')) {
+        console.debug('Inicialización principal omitida en página de reporte.');
+        return;
+    }
+
     const formConfig = document.getElementById('formConfiguracion');
     if (formConfig) {
         formConfig.addEventListener('submit', guardarConfiguracion);
@@ -4108,12 +4435,33 @@ async function subirLogtagDocumento() {
         // Actualizar lista y estadísticas
         await actualizarEstadisticasLogtag();
         await cargarListaLogtags();
+        await refrescarAnalisisDocumentosSiCorresponde(ensayoId ? parseInt(ensayoId) : null);
         
     } catch (error) {
         console.error('Error al subir documento:', error);
         showToast('Error al subir documento: ' + error.message, 'error');
     }
 }
+
+/**
+ * Refrescar la lista de documentos en la sección de análisis si el ensayo seleccionado coincide
+ */
+async function refrescarAnalisisDocumentosSiCorresponde(ensayoId) {
+    if (!ensayoId) {
+        return;
+    }
+
+    const analisisEnsayo = document.getElementById('analisisEnsayo');
+    if (!analisisEnsayo || !analisisEnsayo.value) {
+        return;
+    }
+
+    const ensayoSeleccionado = parseInt(analisisEnsayo.value);
+    if (ensayoSeleccionado === ensayoId) {
+        await cargarLogtagsEnsayo(ensayoId);
+    }
+}
+
 
 /**
  * Cargar lista de documentos logtag
@@ -4579,7 +4927,36 @@ function filtrarDatosPorSensoresSeleccionados(datos) {
 
 function obtenerDatosAnalisisActivos() {
     const base = datosFiltradosActuales || datosAnalisisOriginales;
-    return filtrarDatosPorSensoresSeleccionados(base);
+    const datosBase = Array.isArray(base) ? base : [];
+    return filtrarDatosPorSensoresSeleccionados(marcarDatosAnormales(datosBase));
+}
+
+function marcarDatosAnormales(datos) {
+    if (!Array.isArray(datos) || datos.length === 0) {
+        return datos;
+    }
+
+    return datos.map(dato => {
+        const valor = Number(dato.valor);
+        const esHumedad = esSensorHumedad(dato.sensor);
+        const limiteInferior = maquinaLimites ? (esHumedad ? maquinaLimites.limiteInferiorHumedad : maquinaLimites.limiteInferior) : undefined;
+        const limiteSuperior = maquinaLimites ? (esHumedad ? maquinaLimites.limiteSuperiorHumedad : maquinaLimites.limiteSuperior) : undefined;
+
+        let anormal = false;
+        if (!isNaN(valor)) {
+            if (limiteInferior !== undefined && valor < limiteInferior) {
+                anormal = true;
+            }
+            if (limiteSuperior !== undefined && valor > limiteSuperior) {
+                anormal = true;
+            }
+        }
+
+        return {
+            ...dato,
+            anormal: anormal
+        };
+    });
 }
 
 function aplicarFiltroSensoresSeleccionados() {
@@ -4598,25 +4975,27 @@ function aplicarFiltroSensoresSeleccionados() {
 
 function actualizarEstadisticasAnalisis(datos, mostrarFH = false) {
     const analisis = calcularAnalisis(datos);
-    document.getElementById('statTotal').textContent = analisis.totalDatos;
-    document.getElementById('statMedia').textContent = analisis.media.toFixed(2);
-    document.getElementById('statDesv').textContent = analisis.desviacionEstandar.toFixed(2);
-    document.getElementById('statMax').textContent = analisis.maximo.toFixed(2);
-    document.getElementById('statMin').textContent = analisis.minimo.toFixed(2);
-    document.getElementById('statAnormales').textContent = analisis.datosAnormales;
-    document.getElementById('statRango').textContent = analisis.rango.toFixed(2);
-    document.getElementById('statCoefVar').textContent = analisis.coeficienteVariacion.toFixed(2) + '%';
-    document.getElementById('statPorcentajeAnormales').textContent = analisis.porcentajeAnormales.toFixed(2) + '%';
-    document.getElementById('statQ1').textContent = analisis.q1.toFixed(2);
-    document.getElementById('statQ2').textContent = analisis.q2.toFixed(2);
-    document.getElementById('statQ3').textContent = analisis.q3.toFixed(2);
+    const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    setText('statTotal', analisis.totalDatos);
+    setText('statMedia', analisis.media.toFixed(2));
+    setText('statDesv', analisis.desviacionEstandar.toFixed(2));
+    setText('statMax', analisis.maximo.toFixed(2));
+    setText('statMin', analisis.minimo.toFixed(2));
+    setText('statAnormales', analisis.datosAnormales);
+    setText('statRango', analisis.rango.toFixed(2));
+    setText('statCoefVar', analisis.coeficienteVariacion.toFixed(2) + '%');
+    setText('statPorcentajeAnormales', analisis.porcentajeAnormales.toFixed(2) + '%');
+    setText('statQ1', analisis.q1.toFixed(2));
+    setText('statQ2', analisis.q2.toFixed(2));
+    setText('statQ3', analisis.q3.toFixed(2));
 
+    const fhContainer = document.getElementById('statFHContainer');
     if (mostrarFH && ultimoAnalisisFH && ultimoAnalisisFH.factorHistorico !== null && ultimoAnalisisFH.factorHistorico !== undefined) {
-        document.getElementById('statFHContainer').style.display = 'flex';
-        document.getElementById('statFactorHistorico').textContent = ultimoAnalisisFH.factorHistorico.toFixed(6);
-        document.getElementById('statParametroZ').textContent = ultimoAnalisisFH.parametroZ || 14.0;
+        if (fhContainer) fhContainer.style.display = 'flex';
+        setText('statFactorHistorico', ultimoAnalisisFH.factorHistorico.toFixed(6));
+        setText('statParametroZ', ultimoAnalisisFH.parametroZ || 14.0);
     } else {
-        document.getElementById('statFHContainer').style.display = 'none';
+        if (fhContainer) fhContainer.style.display = 'none';
     }
 }
 
@@ -4694,41 +5073,76 @@ function poblarSelectorSensoresFiltro(datos) {
 }
 
 function poblarSelectorSensoresExclusion(datos) {
-    const exclusionSelect = document.getElementById('excluirSensoresSelect');
-    if (!exclusionSelect) return;
+    const exclusionContainer = document.getElementById('excluirSensoresContainer');
+    if (!exclusionContainer) return;
 
-    const sensoresUnicos = obtenerSensoresConDatos(datos).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
-    exclusionSelect.innerHTML = '';
+    const datosBase = (datosAnalisisOriginales && datosAnalisisOriginales.length) ? datosAnalisisOriginales : datos;
+    const sensoresUnicos = obtenerSensoresConDatos(datosBase).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    exclusionContainer.innerHTML = '';
+
+    if (sensoresUnicos.length === 0) {
+        exclusionContainer.innerHTML = '<p style="margin:0;color:#777;font-size:13px;">No hay sensores disponibles para excluir.</p>';
+        return;
+    }
 
     sensoresUnicos.forEach(sensor => {
-        const option = document.createElement('option');
-        option.value = sensor;
-        option.textContent = sensor;
-        if (sensoresExcluidos.has(sensor)) {
-            option.selected = true;
-        }
-        exclusionSelect.appendChild(option);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = sensor;
+        button.className = 'sensor-exclusion-chip';
+        // Colores claros y accesibles
+        const isExcluded = sensoresExcluidos.has(sensor);
+        button.style.cssText = `
+            padding: 8px 16px;
+            margin: 2px 4px;
+            border: 1.5px solid ${isExcluded ? '#e74c3c' : '#b6c6e3'};
+            background: ${isExcluded ? 'linear-gradient(90deg, #ffeaea 0%, #fff 100%)' : 'linear-gradient(90deg, #e3edfa 0%, #f8fbff 100%)'};
+            color: ${isExcluded ? '#c0392b' : '#1f2937'};
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.07);
+        `;
+        button.onclick = () => toggleExclusionSensor(sensor);
+        exclusionContainer.appendChild(button);
     });
 }
 
+function toggleExclusionSensor(sensor) {
+    if (sensoresExcluidos.has(sensor)) {
+        sensoresExcluidos.delete(sensor);
+    } else {
+        sensoresExcluidos.add(sensor);
+    }
+    poblarSelectorSensoresExclusion(datosAnalisisOriginales);
+}
+
 function aplicarExclusionSensores() {
-    const exclusionSelect = document.getElementById('excluirSensoresSelect');
-    if (!exclusionSelect) return;
-
-    sensoresExcluidos = new Set(Array.from(exclusionSelect.selectedOptions).map(opt => opt.value.trim()).filter(Boolean));
-
     // Asegurar que los sensores excluidos no queden seleccionados
     sensoresSeleccionados = new Set([...sensoresSeleccionados].filter(s => !sensoresExcluidos.has(s)));
 
+    crearSelectoresSensores(datosAnalisisOriginales);
     aplicarFiltroSensoresSeleccionados();
 }
 
 function limpiarExclusionSensores() {
     sensoresExcluidos.clear();
-    const exclusionSelect = document.getElementById('excluirSensoresSelect');
-    if (exclusionSelect) {
-        Array.from(exclusionSelect.options).forEach(option => option.selected = false);
-    }
+
+    const datosBase = datosFiltradosActuales || datosAnalisisOriginales || [];
+    const sensoresRestaurar = obtenerSensoresConDatos(datosBase);
+    sensoresSeleccionados = new Set(sensoresRestaurar);
+
+    crearSelectoresSensores(datosBase);
+    poblarSelectorSensoresExclusion(datosBase);
+    aplicarFiltroSensoresSeleccionados();
+
     aplicarFiltroSensoresSeleccionados();
 }
 

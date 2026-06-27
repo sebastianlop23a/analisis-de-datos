@@ -10,11 +10,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.io.IOException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/sensores")
@@ -86,35 +89,89 @@ public class SensorControlador {
     @PostMapping(path = "/crear-con-calibracion", consumes = {"multipart/form-data"})
     public ResponseEntity<?> crearConCalibracion(
             @RequestParam("sensor") String sensorJson,
-            @RequestParam("archivo") org.springframework.web.multipart.MultipartFile archivo,
+            @RequestParam(value = "archivo", required = false) MultipartFile archivo,
+            @RequestParam(value = "archivoTemperatura", required = false) MultipartFile archivoTemperatura,
+            @RequestParam(value = "archivoHumedad", required = false) MultipartFile archivoHumedad,
             @RequestParam(value = "descripcion", required = false) String descripcion,
             @RequestParam(value = "subidoPor", required = false) String subidoPor) {
 
         try {
-            // Parsear JSON del sensor
             Sensor sensor = objectMapper.readValue(sensorJson, Sensor.class);
+            MultipartFile temperaturaFile = (archivoTemperatura != null && !archivoTemperatura.isEmpty())
+                    ? archivoTemperatura
+                    : archivo;
 
-            // Crear sensor
+            if ((temperaturaFile == null || temperaturaFile.isEmpty())
+                    && (archivoHumedad == null || archivoHumedad.isEmpty())) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Debes subir al menos un archivo de calibración (temperatura o humedad)."));
+            }
+
             Sensor nuevo = sensorServicio.crear(sensor);
+            List<Map<String, Object>> calibraciones = new ArrayList<>();
 
-            // Subir calibración mediante el servicio (legacy wrapper delega al nuevo sistema)
-            com.sivco.gestion_archivos.modelos.CalibrationCorrection cal = calibrationServicio.uploadCalibration(
-                    nuevo.getId(), archivo, descripcion, subidoPor);
+            if (temperaturaFile != null && !temperaturaFile.isEmpty()) {
+                var cal = calibrationServicio.uploadCalibration(nuevo.getId(), temperaturaFile, com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel.TEMPERATURE, descripcion, subidoPor);
+                calibraciones.add(Map.of("canal", "temperatura", "sensor", nuevo, "calibracion", cal));
+            }
 
-            return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
-                    .body(Map.of("sensor", nuevo, "calibracion", cal));
+            if (archivoHumedad != null && !archivoHumedad.isEmpty()) {
+                var calHumedad = calibrationServicio.uploadCalibration(
+                        nuevo.getId(), archivoHumedad, com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel.HUMIDITY, descripcion, subidoPor);
+                calibraciones.add(Map.of("canal", "humedad", "sensor", nuevo, "calibracion", calHumedad));
+            }
+
+            Map<String, Object> respuesta = new LinkedHashMap<>();
+            respuesta.put("sensor", nuevo);
+            // humidity stays on the same sensor record; no cloned sensor returned
+            respuesta.put("calibraciones", calibraciones);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
 
         } catch (JsonProcessingException jpe) {
             return ResponseEntity.badRequest().body(Map.of("error", "JSON de sensor inválido: " + jpe.getMessage()));
         } catch (IOException ioe) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error guardando archivo: " + ioe.getMessage()));
         } catch (RuntimeException re) {
             return ResponseEntity.badRequest().body(Map.of("error", re.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private String buildHumidityCode(String codigoBase) {
+        if (codigoBase == null || codigoBase.isBlank()) {
+            return "sensor_hr";
+        }
+
+        String codigo = codigoBase.trim();
+        if (codigo.toUpperCase().endsWith("_HR")) {
+            return codigo;
+        }
+
+        return codigo + "_HR";
+    }
+
+    private Sensor cloneSensorForChannel(Sensor origen, String codigo, String observaciones) {
+        Sensor clon = new Sensor();
+        clon.setCodigo(codigo);
+        clon.setUbicacion(origen.getUbicacion());
+        clon.setTipoSonda(origen.getTipoSonda());
+        clon.setModelo(origen.getModelo());
+        clon.setFabricante(origen.getFabricante());
+        clon.setActivo(true);
+        clon.setUltimaCalibracion(origen.getUltimaCalibracion());
+        clon.setProximaCalibracion(origen.getProximaCalibracion());
+        clon.setFrecuenciaCalibracionDias(origen.getFrecuenciaCalibracionDias());
+        clon.setRangoMinimo(origen.getRangoMinimo());
+        clon.setRangoMaximo(origen.getRangoMaximo());
+        clon.setPrecision(origen.getPrecision());
+        clon.setObservaciones(observaciones != null && !observaciones.isBlank()
+                ? observaciones
+                : origen.getObservaciones());
+        return clon;
     }
     
     /**
@@ -229,7 +286,7 @@ public class SensorControlador {
             @RequestParam(value = "descripcion", required = false) String descripcion,
             @RequestParam(value = "subidoPor", required = false) String subidoPor) {
         try {
-            com.sivco.gestion_archivos.modelos.CalibrationCorrection c = calibrationServicio.uploadCalibration(id, archivo, descripcion, subidoPor);
+            com.sivco.gestion_archivos.modelos.CalibrationCorrection c = calibrationServicio.uploadCalibration(id, archivo, com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel.TEMPERATURE, descripcion, subidoPor);
             return ResponseEntity.ok(c);
         } catch (IOException ioe) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body("Error guardando archivo: " + ioe.getMessage());

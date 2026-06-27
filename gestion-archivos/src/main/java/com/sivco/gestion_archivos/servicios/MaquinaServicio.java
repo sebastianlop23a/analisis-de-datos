@@ -69,6 +69,8 @@ public class MaquinaServicio {
             maquina.setDescripcion(maquinaActualizada.getDescripcion());
             maquina.setLimiteInferior(maquinaActualizada.getLimiteInferior());
             maquina.setLimiteSuperior(maquinaActualizada.getLimiteSuperior());
+            maquina.setLimiteInferiorHumedad(maquinaActualizada.getLimiteInferiorHumedad());
+            maquina.setLimiteSuperiorHumedad(maquinaActualizada.getLimiteSuperiorHumedad());
             maquina.setUnidadMedida(maquinaActualizada.getUnidadMedida());
             maquina.setActiva(maquinaActualizada.getActiva());
             maquina.setUbicacion(maquinaActualizada.getUbicacion());
@@ -96,6 +98,15 @@ public class MaquinaServicio {
         }
         if (maquina.getLimiteSuperior() <= maquina.getLimiteInferior()) {
             throw new IllegalArgumentException("El límite superior debe ser mayor al límite inferior");
+        }
+        boolean humedadesDefinidas = maquina.getLimiteInferiorHumedad() != null || maquina.getLimiteSuperiorHumedad() != null;
+        if (humedadesDefinidas) {
+            if (maquina.getLimiteInferiorHumedad() == null || maquina.getLimiteSuperiorHumedad() == null) {
+                throw new IllegalArgumentException("Ambos límites de humedad deben definirse juntos");
+            }
+            if (maquina.getLimiteSuperiorHumedad() <= maquina.getLimiteInferiorHumedad()) {
+                throw new IllegalArgumentException("El límite superior de humedad debe ser mayor al límite inferior");
+            }
         }
     }
     

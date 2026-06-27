@@ -35,6 +35,10 @@ public class Maquina {
     @NotNull(message = "El límite superior es requerido")
     @Column(nullable = false)
     private Double limiteSuperior;
+
+    private Double limiteInferiorHumedad;
+
+    private Double limiteSuperiorHumedad;
     
     private String unidadMedida;
     

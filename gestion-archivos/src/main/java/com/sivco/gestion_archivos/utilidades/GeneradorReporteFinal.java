@@ -142,7 +142,7 @@ public class GeneradorReporteFinal {
         html.append(".sensor-section { background: #f8f9fa; padding: 10px; margin: 10px 0; border-left: 3px solid #17a2b8; }\n");
         html.append("</style>\n");
         html.append("</head>\n");
-        html.append("<body>\n");
+        html.append("<body class=\"reporte-html\">\n");
         html.append("<div class=\"container\">\n");
         
         // Título
@@ -322,25 +322,7 @@ public class GeneradorReporteFinal {
             html.append("</table>\n");
         }
         
-        // Análisis por Sensor (detalle individual)
-        html.append("<div class=\"page-break\"></div>\n");
-        html.append("<h2>Analisis Detallado por Sensor</h2>\n");
-        for (String sensor : datosPorSensor.keySet()) {
-            List<DatoEnsayoTemporal> datosSensor = datosPorSensor.get(sensor);
-            double mediaSensor = datosSensor.stream().mapToDouble(DatoEnsayoTemporal::getValor).average().orElse(0);
-            double minSensor = datosSensor.stream().mapToDouble(DatoEnsayoTemporal::getValor).min().orElse(0);
-            double maxSensor = datosSensor.stream().mapToDouble(DatoEnsayoTemporal::getValor).max().orElse(0);
-            long anormalesSensor = datosSensor.stream().filter(d -> d.getAnormal() != null && d.getAnormal()).count();
-            
-            html.append("<div class=\"sensor-section\">\n");
-            html.append("<h3>Sensor: ").append(escaparHtml(sensor)).append("</h3>\n");
-            html.append("<p><strong>Registros:</strong> ").append(datosSensor.size()).append(" | ");
-            html.append("<strong>Media:</strong> ").append(String.format("%.2f", mediaSensor)).append(" | ");
-            html.append("<strong>Minimo:</strong> ").append(String.format("%.2f", minSensor)).append(" | ");
-            html.append("<strong>Maximo:</strong> ").append(String.format("%.2f", maxSensor)).append(" | ");
-            html.append("<strong>Anormales:</strong> ").append(anormalesSensor).append("</p>\n");
-            html.append("</div>\n");
-        }
+        // Sección "Análisis Detallado por Sensor" eliminada para esta versión del reporte.
         
         // Datos Anormales (si existen)
         List<DatoEnsayoTemporal> anormales = datos.stream()
@@ -488,7 +470,7 @@ public class GeneradorReporteFinal {
         html.append(generarSeccionEstadisticas(base, q1, q2, q3));
         html.append(generarTablaEstadisticas(base, q1, q2, q3));
         html.append(generarSeccionGraficas(base, datos, q1, q2, q3, datosPorSensor));
-        html.append(generarSeccionSensores(datosPorSensor));
+        // Sección "Análisis Detallado por Sensor" eliminada según solicitud.
         html.append(generarSeccionCorrecciones(correcciones));
         html.append(generarFooter());
         
@@ -502,49 +484,112 @@ public class GeneradorReporteFinal {
         head.append("  <meta charset=\"UTF-8\">\n");
         head.append("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
         head.append("  <title>Reporte - ").append(base.getNombreEnsayo()).append("</title>\n");
+        // Match the frontend: Chart.js + Hammer.js + zoom plugin v1.2.1 + boxplot + annotation
         head.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js\"></script>\n");
-        head.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.1.0/chartjs-plugin-zoom.min.js\"></script>\n");
+        head.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js\"></script>\n");
+        head.append("  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/1.2.1/chartjs-plugin-zoom.min.js\"></script>\n");
+        head.append("  <script src=\"https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot@3.1.0/dist/chartjs-chart-box-and-violin-plot.min.js\"></script>\n");
+        head.append("  <script src=\"https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1/dist/chartjs-plugin-annotation.min.js\"></script>\n");
+        // Register annotation plugin if available to ensure horizontal lines render
+        head.append("  <script>\n");
+        head.append("    (function(){\n");
+        head.append("      try {\n");
+        head.append("        const plugin = window.chartjsPluginAnnotation || window.annotationPlugin || window.ChartAnnotation || window['chartjs-plugin-annotation'];\n");
+        head.append("        if (plugin && window.Chart && typeof window.Chart.register === 'function') {\n");
+        head.append("          try { window.Chart.register(plugin); } catch(e) { console.warn('No se pudo registrar annotation plugin:', e); }\n");
+        head.append("        }\n");
+        head.append("      } catch(e) { console.warn('Error registrando plugins en reporte:', e); }\n");
+        head.append("    })();\n");
+        head.append("  </script>\n");
         head.append(generarCSS());
+        head.append("  <script>window.__SKIP_MAIN_APP_INITIALIZATION = true;</script>\n");
+        head.append(generarScriptIncrustado("static/js/config.js"));
+        head.append(generarScriptIncrustado("static/js/app.js"));
+        head.append(generarScriptIncrustado("static/js/comparacion.js"));
         head.append("</head>\n");
         return head.toString();
     }
 
+    private String generarScriptIncrustado(String recurso) {
+        String contenido = cargarRecursoTexto(recurso);
+        if (contenido == null || contenido.isEmpty()) {
+            return "  <!-- No se pudo cargar " + recurso + " -->\n";
+        }
+        contenido = contenido.replace("</script>", "<\\/script>");
+        return "  <script>\n" + contenido + "\n  </script>\n";
+    }
+
+    private String cargarRecursoTexto(String recurso) {
+        try (var inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(recurso)) {
+            if (inputStream == null) {
+                return null;
+            }
+            try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                String linea;
+                while ((linea = reader.readLine()) != null) {
+                    sb.append(linea).append("\n");
+                }
+                return sb.toString();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private String generarCSS() {
         return "  <style>\n" +
+            "    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');\n" +
+            "    :root {\n" +
+            "      --color-primary: #3498db;\n" +
+            "      --color-success: #2ecc71;\n" +
+            "      --color-danger: #e74c3c;\n" +
+            "      --color-warning: #f39c12;\n" +
+            "      --color-dark: #2c3e50;\n" +
+            "      --color-light: #f5f7fb;\n" +
+            "      --color-border: #d1d5db;\n" +
+            "      --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);\n" +
+            "      --transition: all 0.3s ease;\n" +
+            "    }\n" +
             "    * { margin: 0; padding: 0; box-sizing: border-box; }\n" +
-            "    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #e2e8f0; background: #0b1220; }\n" +
-            "    .container { max-width: 1160px; margin: 24px auto 48px; background: #111827; padding: 30px 34px 40px; border-radius: 20px; border: 1px solid #1f2937; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.45); }\n" +
-            "    h1 { color: #f8fafc; border-bottom: 4px solid #2563eb; padding-bottom: 14px; margin-bottom: 20px; font-size: 34px; letter-spacing: 0.8px; }\n" +
-            "    h2 { color: #f8fafc; margin-top: 34px; border-left: 5px solid #2563eb; padding-left: 14px; font-size: 20px; margin-bottom: 16px; }\n" +
-            "    h3 { color: #cbd5e1; margin-bottom: 12px; }\n" +
-            "    .info-section { background: #111827; padding: 20px; border-radius: 18px; margin: 18px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; border: 1px solid #1f2937; }\n" +
-            "    .info-section p { line-height: 1.75; color: #cbd5e1; font-size: 14px; }\n" +
-            "    .badge { display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }\n" +
-            "    .badge-success { background: #22c55e; color: #0f172a; }\n" +
-            "    .badge-warning { background: #facc15; color: #0f172a; }\n" +
-            "    .summary-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 20px 0 26px; }\n" +
-            "    .summary-card { background: #0f172a; border: 1px solid #1f2937; padding: 18px 20px; border-radius: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }\n" +
-            "    .summary-card h4 { font-size: 13px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }\n" +
-            "    .summary-card p { font-size: 22px; color: #f8fafc; font-weight: 700; margin: 0; }\n" +
-            "    .metric-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 18px 0 26px; }\n" +
-            "    .metric-card { background: #0f172a; border: 1px solid #1f2937; border-radius: 18px; padding: 18px 16px; color: #e2e8f0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }\n" +
-            "    .metric-card strong { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }\n" +
-            "    .metric-card span { display: block; font-size: 28px; font-weight: 700; margin-top: 6px; color: #f8fafc; }\n" +
-            "    .metric-card.emphasis { background: linear-gradient(135deg, #1e3a8a, #0f172a); border-color: #2563eb; }\n" +
-            "    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0; }\n" +
-            "    .stat-box { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 16px; border-radius: 14px; text-align: center; min-height: 100px; display: flex; flex-direction: column; justify-content: center; }\n" +
-            "    .stat-value { font-size: 20px; font-weight: bold; }\n" +
-            "    .stat-label { font-size: 11px; margin-top: 6px; opacity: 0.95; }\n" +
-            "    .chart-container { position: relative; width: 100%; height: 350px; margin: 30px 0; padding: 20px; border: 1px solid #1f2937; border-radius: 18px; background: #0f172a; }\n" +
-            "    .chart-zoom-info { background: #111827; border: 1px solid #1f2937; color: #cbd5e1; padding: 12px; border-radius: 12px; margin-bottom: 12px; font-size: 13px; }\n" +
-            "    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }\n" +
-            "    .chart-half { position: relative; width: 100%; height: 300px; padding: 18px; border: 1px solid #1f2937; border-radius: 18px; background: #111827; }\n" +
-            "    .sensor-section { background: #111827; padding: 20px; margin: 20px 0; border-left: 4px solid #2563eb; border-radius: 18px; }\n" +
-            "    .sensor-title { color: #e2e8f0; font-weight: bold; margin-bottom: 15px; }\n" +
-            "    table { width: 100%; border-collapse: collapse; margin: 18px 0; background: #0f172a; }\n" +
-            "    th { background: #1e293b; color: #e2e8f0; padding: 13px; text-align: left; }\n" +
-            "    td { padding: 11px; border-bottom: 1px solid #1f2937; color: #cbd5e1; }\n" +
-            "    tr:nth-child(even) { background: #111827; }\n" +
+            "    html { scroll-behavior: smooth; }\n" +
+            "    body { font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fb; color: #2c3e50; line-height: 1.6; }\n" +
+            "    .container { max-width: 1180px; margin: 24px auto 48px; padding: 30px 32px 40px; background: #ffffff; border-radius: 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08); }\n" +
+            "    h1 { color: #2c3e50; margin-bottom: 24px; font-size: 2.6rem; letter-spacing: 0.6px; }\n" +
+            "    h2 { color: #1f2937; margin-top: 40px; margin-bottom: 18px; font-size: 1.65rem; border-left: 6px solid var(--color-primary); padding-left: 14px; }\n" +
+            "    h3, h4, h5 { color: #2c3e50; margin-bottom: 16px; }\n" +
+            "    .section-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 30px; }\n" +
+            "    .chart-container { background: #ffffff; padding: 24px; border-radius: 18px; box-shadow: var(--shadow); border: 1px solid #e5e7eb; }\n" +
+            "    .chart-container h3 { margin-bottom: 18px; font-size: 1.1rem; }\n" +
+            "    .chart-container canvas { width: 100% !important; max-height: 520px; min-height: 380px; }\n" +
+            "    .chart-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }\n" +
+            "    .chart-filter { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; flex-wrap: wrap; }\n" +
+            "    .chart-filter label { font-weight: 600; color: #2c3e50; }\n" +
+            "    .filter-time { padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: #fafbfc; font-size: 0.9rem; }\n" +
+            "    .btn, .btn-filter, .btn-clear, .btn-sm { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; border: none; transition: var(--transition); font-weight: 600; }\n" +
+            "    .btn { padding: 10px 16px; background: var(--color-primary); color: #ffffff; }\n" +
+            "    .btn-sm { padding: 8px 12px; font-size: 0.88rem; }\n" +
+            "    .btn-filter { padding: 8px 12px; background: var(--color-primary); color: #ffffff; }\n" +
+            "    .btn-clear { padding: 8px 12px; background: #6b7280; color: #ffffff; }\n" +
+            "    .btn-success { background: var(--color-success); color: #ffffff; }\n" +
+            "    .btn-warning { background: var(--color-warning); color: #ffffff; }\n" +
+            "    .btn-danger { background: var(--color-danger); color: #ffffff; }\n" +
+            "    .table-section { background: #ffffff; padding: 24px; border-radius: 18px; box-shadow: var(--shadow); margin-top: 30px; overflow-x: auto; }\n" +
+            "    .table { width: 100%; border-collapse: collapse; }\n" +
+            "    .table thead { background-color: #1f2937; color: #ffffff; }\n" +
+            "    .table th { padding: 16px; text-align: left; font-weight: 700; border-bottom: 3px solid var(--color-primary); }\n" +
+            "    .table td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; color: #334155; }\n" +
+            "    .table tbody tr:hover { background-color: #f8fafc; }\n" +
+            "    .table tbody tr:nth-child(even) { background-color: #f3f4f6; }\n" +
+            "    .stats-card { background: #ffffff; padding: 22px; border-radius: 18px; box-shadow: var(--shadow); border-top: 4px solid var(--color-primary); text-align: center; }\n" +
+            "    .stats-card h4 { margin-bottom: 10px; font-size: 0.95rem; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; }\n" +
+            "    .stats-card p { margin: 0; font-size: 2rem; font-weight: 700; color: #111827; }\n" +
+            "    .data-table { width: 100%; border-collapse: collapse; }\n" +
+            "    .data-table th { padding: 14px 12px; background: #161e2b; color: #f8fafc; text-align: left; }\n" +
+            "    .data-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; color: #334155; }\n" +
+            "    .data-table tbody tr:hover { background: #f8fafc; }\n" +
+            "    .table-container { margin-top: 20px; }\n" +
+            "    .loading { color: #64748b; font-style: italic; }\n" +
             "    .page-break { page-break-after: always; margin: 40px 0; }\n" +
             "  </style>\n";
     }
@@ -644,61 +689,224 @@ public class GeneradorReporteFinal {
             double q1, double q2, double q3, Map<String, List<DatoEnsayoTemporal>> datosPorSensor) {
         StringBuilder sb = new StringBuilder();
         sb.append("  <div class=\"page-break\"></div>\n");
-        sb.append("  <h2>Gráficas de Análisis - Parte 1</h2>\n");
-        sb.append("  <div class=\"chart-container\"><canvas id=\"boxPlot\"></canvas></div>\n");
-        sb.append("  <div class=\"chart-zoom-info\"><strong>Serie Temporal Interactiva:</strong> Usa la rueda del ratón para hacer ZOOM. Mantén click izquierdo para desplazarte (PAN). Click derecho para resetear.</div>\n");
-        sb.append("  <div class=\"chart-container\"><canvas id=\"timeSeries\"></canvas></div>\n");
-        sb.append("  <div style=\"margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;\">\n");
-        sb.append("    <label for=\"timeSeriesSlider\" style=\"display: block; margin-bottom: 5px; font-weight: bold; font-size: 12px;\">Desplazamiento: <span id=\"sliderValue\">0</span> / <span id=\"sliderMax\">0</span></label>\n");
-        sb.append("    <input type=\"range\" id=\"timeSeriesSlider\" min=\"0\" max=\"100\" value=\"0\" style=\"width: 100%; cursor: pointer;\">\n");
+        sb.append("  <h2>Análisis Completo</h2>\n");
+        sb.append("  <div class=\"chart-container\" style=\"margin-bottom: 24px;\">\n");
+        sb.append("    <h3>Filtros de análisis</h3>\n");
+        sb.append("    <div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: end;\">\n");
+        sb.append("      <div style=\"display: flex; flex-direction: column; gap: 8px;\">\n");
+        sb.append("        <label for=\"filtroHoraInicio\" style=\"font-weight: 700;\">Inicio</label>\n");
+        sb.append("        <input type=\"datetime-local\" id=\"filtroHoraInicio\" class=\"filter-time\" style=\"width: 100%;\">\n");
+        sb.append("      </div>\n");
+        sb.append("      <div style=\"display: flex; flex-direction: column; gap: 8px;\">\n");
+        sb.append("        <label for=\"filtroHoraFin\" style=\"font-weight: 700;\">Fin</label>\n");
+        sb.append("        <input type=\"datetime-local\" id=\"filtroHoraFin\" class=\"filter-time\" style=\"width: 100%;\">\n");
+        sb.append("      </div>\n");
+        sb.append("      <div style=\"display: flex; flex-direction: column; gap: 8px;\">\n");
+        sb.append("        <label for=\"filtroSensor\" style=\"font-weight: 700;\">Sensor</label>\n");
+        sb.append("        <select id=\"filtroSensor\" class=\"filter-time\" style=\"width: 100%; min-height: 40px;\">\n");
+        sb.append("          <option value=\"\">Todos los sensores</option>\n");
+        sb.append("        </select>\n");
+        sb.append("      </div>\n");
+        sb.append("      <div style=\"display: flex; gap: 10px; flex-wrap: wrap;\">\n");
+        sb.append("        <button type=\"button\" onclick=\"aplicarFiltroHora()\" class=\"btn\">Aplicar filtro</button>\n");
+        sb.append("        <button type=\"button\" onclick=\"limpiarFiltroHora()\" class=\"btn-clear\">Limpiar</button>\n");
+        sb.append("      </div>\n");
+        sb.append("      <div style=\"display: flex; flex-direction: column; gap: 8px;\">\n");
+        sb.append("        <label for=\"filtroAnalisisInicio\" style=\"font-weight: 700;\">Análisis parcial: inicio</label>\n");
+        sb.append("        <input type=\"datetime-local\" id=\"filtroAnalisisInicio\" class=\"filter-time\" style=\"width: 100%;\">\n");
+        sb.append("      </div>\n");
+        sb.append("      <div style=\"display: flex; flex-direction: column; gap: 8px;\">\n");
+        sb.append("        <label for=\"filtroAnalisisFin\" style=\"font-weight: 700;\">Análisis parcial: fin</label>\n");
+        sb.append("        <input type=\"datetime-local\" id=\"filtroAnalisisFin\" class=\"filter-time\" style=\"width: 100%;\">\n");
+        sb.append("      </div>\n");
+        sb.append("      <div style=\"display: flex; gap: 10px; flex-wrap: wrap;\">\n");
+        sb.append("        <button type=\"button\" onclick=\"aplicarFiltroAnalisisParcial()\" class=\"btn\">Aplicar análisis parcial</button>\n");
+        sb.append("        <button type=\"button\" onclick=\"limpiarFiltroAnalisisParcial()\" class=\"btn-clear\">Restaurar</button>\n");
+        sb.append("      </div>\n");
+        sb.append("      <div id=\"filtroActivoTexto\" style=\"grid-column: 1 / -1; font-size: 0.95rem; color: #34495e; font-weight: 700;\">Sin filtros activos</div>\n");
+        sb.append("      <div id=\"analisisParteTexto\" style=\"grid-column: 1 / -1; font-size: 0.95rem; color: #5f6b7a;\"></div>\n");
+        sb.append("    </div>\n");
         sb.append("  </div>\n");
-        
-        sb.append("  <div class=\"page-break\"></div>\n");
-        sb.append("  <h2>Gráficas de Análisis - Parte 2</h2>\n");
-        sb.append("  <div class=\"chart-row\">\n");
-        sb.append("    <div class=\"chart-half\"><canvas id=\"histogram\"></canvas></div>\n");
-        sb.append("    <div class=\"chart-half\"><canvas id=\"anomaly\"></canvas></div>\n");
+
+        sb.append("  <div class=\"section-row\">\n");
+        sb.append("    <div class=\"stats-card emphasis\"><h4>Registros</h4><p id=\"statTotal\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>Media</h4><p id=\"statMedia\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>Desv. Est.</h4><p id=\"statDesv\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>Máximo</h4><p id=\"statMax\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>Mínimo</h4><p id=\"statMin\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>Anormales</h4><p id=\"statAnormales\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>Rango</h4><p id=\"statRango\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>Coef. Variación</h4><p id=\"statCoefVar\">0</p></div>\n");
+        sb.append("    <div class=\"stats-card\"><h4>% Anormales</h4><p id=\"statPorcentajeAnormales\">0</p></div>\n");
         sb.append("  </div>\n");
-        sb.append("  <div class=\"chart-row\">\n");
-        sb.append("    <div class=\"chart-half\"><canvas id=\"quartiles\"></canvas></div>\n");
-        sb.append("    <div class=\"chart-half\"><canvas id=\"limits\"></canvas></div>\n");
+
+        sb.append("  <div class=\"section-row\">\n");
+        sb.append("    <div class=\"chart-container\">\n");
+        sb.append("      <div class=\"chart-header\">\n");
+        sb.append("        <h3>Distribución de Datos</h3>\n");
+        sb.append("      </div>\n");
+        sb.append("      <canvas id=\"chartDatos\"></canvas>\n");
+        sb.append("    </div>\n");
+        sb.append("    <div class=\"chart-container\">\n");
+        sb.append("      <div class=\"chart-header\">\n");
+        sb.append("        <h3>Datos Normales vs Anormales</h3>\n");
+        sb.append("      </div>\n");
+        sb.append("      <canvas id=\"chartAnormales\"></canvas>\n");
+        sb.append("    </div>\n");
         sb.append("  </div>\n");
-        
+
+        sb.append("  <div class=\"section-row\">\n");
+        sb.append("    <div class=\"chart-container\">\n");
+        sb.append("      <div class=\"chart-header\">\n");
+        sb.append("        <h3>Boxplot (Caja y Bigotes)</h3>\n");
+        sb.append("      </div>\n");
+        sb.append("      <canvas id=\"chartBoxplot\"></canvas>\n");
+        sb.append("    </div>\n");
+        sb.append("    <div class=\"chart-container\">\n");
+        sb.append("      <div class=\"chart-header\">\n");
+        sb.append("        <h3>Análisis de Cuartiles</h3>\n");
+        sb.append("      </div>\n");
+        sb.append("      <canvas id=\"chartCuartiles\"></canvas>\n");
+        sb.append("    </div>\n");
+        sb.append("  </div>\n");
+
+        sb.append("  <div class=\"chart-container\">\n");
+        sb.append("    <div class=\"chart-header\">\n");
+        sb.append("      <h3>Serie Temporal</h3>\n");
+        sb.append("    </div>\n");
+        sb.append("    <canvas id=\"chartTemporal\"></canvas>\n");
+        sb.append("  </div>\n");
+
+        sb.append("  <div class=\"table-section\">\n");
+        sb.append("    <h3>Análisis por Sensor</h3>\n");
+        sb.append("    <div id=\"analisisSensores\" class=\"table-container\"><p class=\"loading\">Cargando análisis por sensor...</p></div>\n");
+        sb.append("  </div>\n");
+
+        sb.append("  <div class=\"table-section\">\n");
+        sb.append("    <h3>Gráficas por Sensor</h3>\n");
+        sb.append("    <div style=\"margin-bottom: 15px; padding: 20px; background: rgba(52, 152, 219, 0.08); border-radius: 12px; border: 2px solid rgba(52, 152, 219, 0.2);\">\n");
+        sb.append("      <div style=\"display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;\">\n");
+        sb.append("        <label style=\"display: flex; align-items: center; gap: 10px; cursor: pointer;\">\n");
+        sb.append("          <input type=\"checkbox\" id=\"modoComparacion\" onchange=\"toggleModoComparacion()\" style=\"width: 18px; height: 18px; cursor: pointer;\">\n");
+        sb.append("          <span style=\"font-size: 16px;\"><strong>📏 Modo Comparación:</strong> Superponer todos los sensores</span>\n");
+        sb.append("        </label>\n");
+        sb.append("      </div>\n");
+        sb.append("      <div style=\"display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;\">\n");
+        sb.append("        <strong style=\"font-size: 15px;\">🎯 Sensores:</strong>\n");
+        sb.append("        <div style=\"display: flex; gap: 8px;\">\n");
+        sb.append("          <button type=\"button\" onclick=\"seleccionarTodosSensores()\" class=\"btn btn-sm\" style=\"padding: 4px 12px; font-size: 12px; background: #27ae60; border: none;\">✓ Todos</button>\n");
+        sb.append("          <button type=\"button\" onclick=\"deseleccionarTodosSensores()\" class=\"btn btn-sm\" style=\"padding: 4px 12px; font-size: 12px; background: #e74c3c; border: none;\">✕ Ninguno</button>\n");
+        sb.append("        </div>\n");
+        sb.append("      </div>\n");
+        sb.append("      <div id=\"selectoresSensores\" style=\"display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px;\">\n");
+        sb.append("        <p style=\"color: #888; font-style: italic;\">🔄 Cargando sensores...</p>\n");
+        sb.append("      </div>\n");
+        sb.append("    </div>\n");
+        sb.append("    <div id=\"graficasSensores\">\n");
+        sb.append("      <p class=\"loading\">📈 Cargando gráficas por sensor...</p>\n");
+        sb.append("    </div>\n");
+        sb.append("  </div>\n");
+
+        sb.append("  <div class=\"table-section\">\n");
+        sb.append("    <h3>Datos Registrados</h3>\n");
+        sb.append("    <div style=\"margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.08); border-radius: 8px; border: 1px solid rgba(52, 152, 219, 0.2);\">\n");
+        sb.append("      <table style=\"width: 100%; border-collapse: collapse;\">\n");
+        sb.append("        <thead>\n");
+        sb.append("          <tr>\n");
+        sb.append("            <th style=\"width: 40px; text-align: center;\"><input type=\"checkbox\" id=\"checkAllDatos\" onchange=\"seleccionarTodosDatosTabla()\" style=\"width: 16px; height: 16px; cursor: pointer;\"></th>\n");
+        sb.append("            <th>#</th>\n");
+        sb.append("            <th>Timestamp</th>\n");
+        sb.append("            <th>Sensor</th>\n");
+        sb.append("            <th>Valor</th>\n");
+        sb.append("            <th>Anormal</th>\n");
+        sb.append("            <th>Fuente</th>\n");
+        sb.append("          </tr>\n");
+        sb.append("        </thead>\n");
+        sb.append("        <tbody id=\"tablaDatosBody\">\n");
+        sb.append("          <tr><td colspan=\"7\" class=\"loading\">Cargando datos...</td></tr>\n");
+        sb.append("        </tbody>\n");
+        sb.append("      </table>\n");
+        sb.append("    </div>\n");
+        sb.append("  </div>\n");
+
         sb.append("<script>\n");
-        sb.append(generarScriptGraficas(base, datos, q1, q2, q3, datosPorSensor));
+        sb.append("  (function(){\n");
+        sb.append("    function iniciarReporte() {\n");
+        sb.append("      try {\n");
+        sb.append("        const datos = ").append(generarArrayObjetos(datos)).append(";\n");
+        sb.append("        window.datosAnalisisOriginales = datos;\n");
+        sb.append("        window.datosFiltradosActuales = datos;\n");
+        sb.append("        window.datosTablaActual = datos;\n");
+        sb.append("        window.maquinaLimites = { limiteInferior: ").append(base.getLimiteInferior()).append(", limiteSuperior: ").append(base.getLimiteSuperior()).append(" };\n");
+        sb.append("        window.filtrosGraficas = window.filtrosGraficas || { distribucion: null, anormales: null, boxplot: null, cuartiles: null, temporal: null, sensores: {} };\n");
+        sb.append("        window.indicesSeleccionadosTabla = window.indicesSeleccionadosTabla || new Set();\n");
+        sb.append("        if (typeof poblarSelectorSensoresFiltro === 'function') { poblarSelectorSensoresFiltro(datos); }\n");
+        sb.append("        if (typeof actualizarFiltroActivoTexto === 'function') { actualizarFiltroActivoTexto(null, null, ''); }\n");
+        sb.append("        const valores = datos.map(d => d.valor);\n");
+        sb.append("        const media = datos.length ? valores.reduce((s, v) => s + v, 0) / datos.length : 0;\n");
+        sb.append("        const valoresOrdenados = datos.map(d => d.valor).sort((a, b) => a - b);\n");
+        sb.append("        const q1 = datos.length ? calcularCuartil(valoresOrdenados, 0.25) : 0;\n");
+        sb.append("        const q2 = datos.length ? calcularCuartil(valoresOrdenados, 0.50) : 0;\n");
+        sb.append("        const q3 = datos.length ? calcularCuartil(valoresOrdenados, 0.75) : 0;\n");
+        sb.append("        try {\n");
+        sb.append("          actualizarEstadisticasAnalisis(datos, false);\n");
+        sb.append("          crearGraficoDistribucion(datos, media);\n");
+        sb.append("          crearGraficoAnormales(datos);\n");
+        sb.append("          crearGraficoBoxplot(datos, { q1, mediana: q2, q3, minimo: Math.min(...valoresOrdenados), maximo: Math.max(...valoresOrdenados), media });\n");
+        sb.append("          crearGraficoCuartiles({ q1, q3, media, maximo: Math.max(...valoresOrdenados), minimo: Math.min(...valoresOrdenados) });\n");
+        sb.append("          crearGraficoTemporal(datos);\n");
+        sb.append("          crearAnalisisPorSensor(datos, media);\n");
+        sb.append("          crearGraficasPorSensor(datos);\n");
+        sb.append("          llenarTablaDatos(datos);\n");
+        sb.append("        } catch(e) {\n");
+        sb.append("          console.error('Error creando gráficas frontend:', e);\n");
+        sb.append("          const errorMsg = document.createElement('div');\n");
+        sb.append("          errorMsg.style.color = '#c0392b';\n");
+        sb.append("          errorMsg.style.marginTop = '16px';\n");
+        sb.append("          errorMsg.textContent = 'Error creando las gráficas. Revisa la consola del navegador.';\n");
+        sb.append("          document.querySelector('.container').prepend(errorMsg);\n");
+        sb.append("        }\n");
+        sb.append("      } catch(e) {\n");
+        sb.append("        console.error('Error inyectando datos en reporte:', e);\n");
+        sb.append("      }\n");
+        sb.append("    }\n");
+        sb.append("    function ensureLibrariesThenStart() {\n");
+        sb.append("      if (typeof Chart !== 'undefined') { iniciarReporte(); return; }\n");
+        sb.append("      const libs = [\n");
+        sb.append("        'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js',\n");
+        sb.append("        'https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js',\n");
+        sb.append("        'https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/1.2.1/chartjs-plugin-zoom.min.js',\n");
+        sb.append("        'https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot@3.1.0/dist/chartjs-chart-box-and-violin-plot.min.js',\n");
+        sb.append("        'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1/dist/chartjs-plugin-annotation.min.js'\n");
+        sb.append("      ];\n");
+        sb.append("      function loadScript(src) {\n");
+        sb.append("        return new Promise((resolve, reject) => {\n");
+        sb.append("          const s = document.createElement('script'); s.src = src; s.async = false; s.onload = () => resolve(src); s.onerror = () => reject(src); document.head.appendChild(s);\n");
+        sb.append("        });\n");
+        sb.append("      }\n");
+        sb.append("      (async function(){\n");
+        sb.append("        try {\n");
+        sb.append("          for (const l of libs) { await loadScript(l); }\n");
+        sb.append("          // Try registering annotation plugin if present\n");
+        sb.append("          try { const plugin = window.chartjsPluginAnnotation || window.annotationPlugin || window.ChartAnnotation || window['chartjs-plugin-annotation']; if (plugin && window.Chart && typeof window.Chart.register === 'function') { window.Chart.register(plugin); } } catch(e){}\n");
+        sb.append("          iniciarReporte();\n");
+        sb.append("        } catch(e) { console.warn('No se pudieron cargar librerías externas:', e); iniciarReporte(); }\n");
+        sb.append("      })();\n");
+        sb.append("    }\n");
+        sb.append("    if (document.readyState === 'loading') {\n");
+        sb.append("      document.addEventListener('DOMContentLoaded', ensureLibrariesThenStart);\n");
+        sb.append("    } else {\n");
+        sb.append("      ensureLibrariesThenStart();\n");
+        sb.append("    }\n");
+        sb.append("  })();\n");
         sb.append("</script>\n");
-        
+
         return sb.toString();
     }
 
     private String generarSeccionSensores(Map<String, List<DatoEnsayoTemporal>> datosPorSensor) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("  <div class=\"page-break\"></div>\n");
-        sb.append("  <h2>Análisis Detallado por Sensor</h2>\n");
-        
-        int sensorIdx = 0;
-        for (String sensor : datosPorSensor.keySet()) {
-            List<DatoEnsayoTemporal> datosSensor = datosPorSensor.get(sensor);
-            double mediaSensor = datosSensor.stream().mapToDouble(DatoEnsayoTemporal::getValor).average().orElse(0);
-            double minSensor = datosSensor.stream().mapToDouble(DatoEnsayoTemporal::getValor).min().orElse(0);
-            double maxSensor = datosSensor.stream().mapToDouble(DatoEnsayoTemporal::getValor).max().orElse(0);
-            long anormalesSensor = datosSensor.stream().filter(d -> d.getAnormal() != null && d.getAnormal()).count();
-            
-            sb.append("  <div class=\"sensor-section\">\n");
-            sb.append("    <div class=\"sensor-title\">Sensor: ").append(sensor).append("</div>\n");
-            sb.append("    <table style=\"font-size: 12px;\">\n");
-            sb.append("      <tr><td><strong>Registros:</strong></td><td>").append(datosSensor.size()).append("</td><td><strong>Media:</strong></td><td>").append(String.format("%.2f", mediaSensor)).append("</td></tr>\n");
-            sb.append("      <tr><td><strong>Mínimo:</strong></td><td>").append(String.format("%.2f", minSensor)).append("</td><td><strong>Máximo:</strong></td><td>").append(String.format("%.2f", maxSensor)).append("</td></tr>\n");
-            sb.append("      <tr><td><strong>Rango:</strong></td><td>").append(String.format("%.2f", maxSensor - minSensor)).append("</td><td><strong>Anormales:</strong></td><td>").append(anormalesSensor).append("</td></tr>\n");
-            sb.append("    </table>\n");
-            sb.append("    <div class=\"chart-container\" style=\"height: 250px; margin: 10px 0;\">\n");
-            sb.append("      <canvas id=\"sensorChart").append(sensorIdx).append("\"></canvas>\n");
-            sb.append("    </div>\n");
-            sb.append("  </div>\n");
-            sensorIdx++;
-        }
-        
-        return sb.toString();
+        // Esta función ha sido desactivada: la sección detallada por sensor fue removida.
+        return "";
     }
 
     private String generarSeccionCorrecciones(java.util.List<com.sivco.gestion_archivos.modelos.CalibrationCorrection> correcciones) {
@@ -767,42 +975,30 @@ public class GeneradorReporteFinal {
     }
 
     private String generarGraficaSeriesTiempo(List<DatoEnsayoTemporal> datos, ReporteFinal base) {
-        String valoresArray = generarArrayValores(datos);
-        return "  const valores = " + valoresArray + ";\n" +
-               "  const etiquetas = Array.from({length: valores.length}, (_, i) => i+1);\n" +
-               "  const timeSeriesChart = new Chart(document.getElementById('timeSeries'), {\n" +
-               "    type: 'line',\n" +
-               "    data: {\n" +
-               "      labels: etiquetas,\n" +
-               "      datasets: [\n" +
-               "        {label: 'Valores', data: valores, borderColor: '#3498db', tension: 0.2, fill: false},\n" +
-               "        {label: 'Límite Sup', data: Array(valores.length).fill(limSup), borderColor: '#e74c3c', borderDash: [5,5], fill: false},\n" +
-               "        {label: 'Límite Inf', data: Array(valores.length).fill(limInf), borderColor: '#e74c3c', borderDash: [5,5], fill: false}\n" +
-               "      ]\n" +
-               "    },\n" +
-               "    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Serie Temporal - Valores vs Límites' }, zoom: { zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } } } }\n" +
-               "  });\n" +
-               "  const slider = document.getElementById('timeSeriesSlider');\n" +
-               "  const sliderValue = document.getElementById('sliderValue');\n" +
-               "  const sliderMax = document.getElementById('sliderMax');\n" +
-               "  const dataLength = valores.length;\n" +
-               "  const windowSize = Math.min(50, dataLength);\n" +
-               "  const maxPos = Math.max(0, dataLength - windowSize);\n" +
-               "  slider.max = maxPos;\n" +
-               "  slider.value = 0;\n" +
-               "  sliderMax.textContent = slider.max;\n" +
-               "  function updateChartWindow(pos) {\n" +
-               "    if (timeSeriesChart.options?.scales?.x) {\n" +
-               "      timeSeriesChart.options.scales.x.min = pos;\n" +
-               "      timeSeriesChart.options.scales.x.max = pos + windowSize;\n" +
-               "      timeSeriesChart.update('none');\n" +
-               "    }\n" +
-               "  }\n" +
-               "  slider.addEventListener('input', function() {\n" +
-               "    const pos = Math.max(0, Math.min(parseInt(this.value || 0), maxPos));\n" +
-               "    sliderValue.textContent = pos;\n" +
-               "    updateChartWindow(pos);\n" +
-               "  });\n";
+        // Serializar datos como objetos JS (timestamp, sensor, valor, anormal)
+        String datosObj = generarArrayObjetos(datos);
+        StringBuilder sb = new StringBuilder();
+        sb.append("  const palette = ['rgb(52,152,219)','rgb(46,204,113)','rgb(231,76,60)','rgb(243,156,18)','rgb(155,89,182)','rgb(26,188,156)','rgb(41,128,185)','rgb(39,174,96)'];\n");
+        sb.append("  const datosRaw = ").append(datosObj).append(";\n");
+        sb.append("  // Agrupar por sensor y obtener timestamps únicos ordenados\n");
+        sb.append("  const sensoresMap = new Map();\n");
+        sb.append("  const timestamps = new Set();\n");
+        sb.append("  datosRaw.forEach(d => { timestamps.add(d.timestamp); if (!sensoresMap.has(d.sensor)) sensoresMap.set(d.sensor, []); sensoresMap.get(d.sensor).push(d); });\n");
+        sb.append("  const labels = Array.from(timestamps).sort((a,b)=>new Date(a)-new Date(b)).map(ts=>{ const dt=new Date(ts); return dt.toLocaleString(); });\n");
+        sb.append("  const datasets = [];\n");
+        sb.append("  let idx=0; sensoresMap.forEach((arr, sensor) => {\n");
+        sb.append("    const color = palette[idx % palette.length];\n");
+        sb.append("    const map = new Map(arr.map(d=>[d.timestamp,d.valor]));\n");
+        sb.append("    datasets.push({ label: sensor, data: labels.map(l=>{ const original=arr.find(x=>new Date(x.timestamp).toLocaleString()===l); return original ? original.valor : null; }), borderColor: color, backgroundColor: color.replace('rgb','rgba').replace(')',',0.1)'), pointRadius:3, tension:0.3, fill:false });\n");
+        sb.append("    idx++;\n");
+        sb.append("  });\n");
+        sb.append("  // Añadir líneas de límite como datasets discontinuos\n");
+        sb.append("  if (!isNaN(limSup)) datasets.push({ label: 'Límite Sup', data: labels.map(()=>limSup), borderColor: 'rgba(231,76,60,1)', borderDash:[8,4], pointRadius:0, fill:false });\n");
+        sb.append("  if (!isNaN(limInf)) datasets.push({ label: 'Límite Inf', data: labels.map(()=>limInf), borderColor: 'rgba(46,204,113,1)', borderDash:[8,4], pointRadius:0, fill:false });\n");
+        sb.append("  const timeSeriesChart = new Chart(document.getElementById('timeSeries'), { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive:true, maintainAspectRatio:false, plugins:{ title:{ display:true, text:'Serie Temporal - Valores vs Límites' }, zoom:{ zoom:{ wheel:{ enabled:true, speed:0.1 }, pinch:{ enabled:true }, mode:'x' }, pan:{ enabled:true, mode:'x' } } }, interaction:{ intersect:false, mode:'index' }, scales:{ x:{ display:true, title:{ display:true, text:'Tiempo' } } } } });\n");
+        sb.append("  // Slider window similar al frontend\n");
+        sb.append("  const slider = document.getElementById('timeSeriesSlider'); if (slider) { const sliderValue=document.getElementById('sliderValue'); const sliderMax=document.getElementById('sliderMax'); const dataLength = labels.length; const windowSize = Math.min(50, dataLength); const maxPos = Math.max(0, dataLength - windowSize); slider.max = maxPos; slider.value = 0; if(sliderMax) sliderMax.textContent = maxPos; if(sliderValue) sliderValue.textContent = 0; function updateChartWindow(pos) { if (timeSeriesChart.options?.scales?.x) { timeSeriesChart.options.scales.x.min = pos; timeSeriesChart.options.scales.x.max = pos + windowSize; timeSeriesChart.update('none'); } } slider.addEventListener('input', function(){ const pos = Math.max(0, Math.min(parseInt(this.value||0), maxPos)); if(sliderValue) sliderValue.textContent = pos; updateChartWindow(pos); }); }\n");
+        return sb.toString();
     }
 
     private String generarGraficasAnalisis(ReporteFinal base, List<DatoEnsayoTemporal> datos, double q1, double q2, double q3) {
@@ -857,16 +1053,36 @@ public class GeneradorReporteFinal {
         for (String sensor : datosPorSensor.keySet()) {
             List<DatoEnsayoTemporal> datosSensor = datosPorSensor.get(sensor);
             String valoresS = generarArrayValores(datosSensor);
-            sb.append("  new Chart(document.getElementById('sensorChart").append(sensorIdx).append("'), {\n");
-            sb.append("    type: 'line',\n");
-            sb.append("    data: {\n");
-            sb.append("      labels: Array.from({length: ").append(datosSensor.size()).append("}, (_, i) => i+1),\n");
-            sb.append("      datasets: [{label: '").append(sensor).append("', data: ").append(valoresS).append(", borderColor: '#3498db', tension: 0.2, fill: false}]\n");
-            sb.append("    },\n");
-            sb.append("    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Sensor: ").append(sensor).append("' } } }\n");
-            sb.append("  });\n");
+            sb.append("  // Gráfica individual para sensor: ").append(sensor).append("\n");
+            sb.append("  (function(){\n");
+            sb.append("    const palette = ['rgb(52,152,219)','rgb(46,204,113)','rgb(231,76,60)','rgb(243,156,18)','rgb(155,89,182)','rgb(26,188,156)'];\n");
+            sb.append("    const datos = ").append(generarArrayObjetos(datosSensor)).append(";\n");
+            sb.append("    const labels = datos.map(d=>new Date(d.timestamp).toLocaleString());\n");
+            sb.append("    const color = palette[").append(sensorIdx).append(" % palette.length];\n");
+            sb.append("    const valores = datos.map(d=>d.valor);\n");
+            sb.append("    new Chart(document.getElementById('sensorChart").append(sensorIdx).append("'), {\n");
+            sb.append("      type: 'line',\n");
+            sb.append("      data: { labels: labels, datasets: [{ label: '").append(sensor).append("', data: valores, borderColor: color, backgroundColor: color.replace('rgb','rgba').replace(')',',0.08)'), pointRadius:3, tension:0.3, fill:false }] },\n");
+            sb.append("      options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Sensor: ").append(sensor).append("' }, zoom: { zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } } }, interaction: { intersect:false, mode:'index' }, scales: { x: { display:true, title:{ display:true, text:'Tiempo' } } } }\n");
+            sb.append("    });\n");
+            sb.append("  })();\n");
             sensorIdx++;
         }
+        return sb.toString();
+    }
+
+    private String generarArrayObjetos(List<DatoEnsayoTemporal> datos) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < datos.size(); i++) {
+            if (i > 0) sb.append(",");
+            DatoEnsayoTemporal d = datos.get(i);
+            String sensor = d.getSensor() != null ? d.getSensor().replace("\"", "\\\"") : "Sin Sensor";
+            String ts = d.getTimestamp() != null ? d.getTimestamp().toString() : "";
+            Double val = d.getValor() != null ? d.getValor() : 0.0;
+            Boolean anormal = d.getAnormal() != null ? d.getAnormal() : false;
+            sb.append("{timestamp:\"").append(escaparHtml(ts)).append("\", sensor:\"").append(escaparHtml(sensor)).append("\", valor:").append(val).append(", anormal:").append(anormal).append("}");
+        }
+        sb.append("]");
         return sb.toString();
     }
     

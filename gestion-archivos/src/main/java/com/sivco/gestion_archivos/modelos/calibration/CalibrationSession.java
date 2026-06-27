@@ -75,6 +75,13 @@ public class CalibrationSession {
     @Enumerated(EnumType.STRING)
     @Column(name = "active_model_type")
     private RegressionModelType activeModelType;
+
+    /**
+     * Optional channel for this calibration session (e.g. TEMPERATURE, HUMIDITY)
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "channel")
+    private CalibrationChannel channel;
     
     /**
      * Name/description of this calibration session

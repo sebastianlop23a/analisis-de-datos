@@ -47,8 +47,7 @@ public class LogtagDocumentoServicio {
     /**
      * Subir un documento logtag y procesarlo como datos de ensayo
      */
-    @Transactional
-        public LogtagDocumento subirDocumento(
+    public LogtagDocumento subirDocumento(
             MultipartFile archivo,
             Long ensayoId,
             String categoriaSeleccionada,

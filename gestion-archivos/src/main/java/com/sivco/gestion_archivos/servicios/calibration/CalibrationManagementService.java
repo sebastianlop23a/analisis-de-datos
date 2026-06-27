@@ -73,9 +73,10 @@ public class CalibrationManagementService {
      * @param uploadedBy usuario que realiza la subida
      * @return la sesión de calibración creada
      */
-    public CalibrationSession uploadAndProcessCalibration(
+        public CalibrationSession uploadAndProcessCalibration(
             Long deviceId,
             MultipartFile file,
+            CalibrationChannel channel,
             RegressionModelType activeModelType,
             String description,
             String uploadedBy) throws IOException {
@@ -115,6 +116,7 @@ public class CalibrationManagementService {
         session.setIsActive(true);
         // Active model will be determined after models are calculated when possible
         session.setActiveModelType(null);
+        session.setChannel(channel == null ? CalibrationChannel.TEMPERATURE : channel);
         session.setDescription(description);
         session.setUploadedBy(uploadedBy != null ? uploadedBy : "System");
         session.setSourceFileName(file.getOriginalFilename());
@@ -303,7 +305,9 @@ public class CalibrationManagementService {
                     savedModels.add(regressionModelRepo.save(cubic));
                 }
 
-                s.setRegressionModels(savedModels);
+                // Update collection preserving JPA proxy (required for cascade delete-orphan)
+                s.getRegressionModels().clear();
+                s.getRegressionModels().addAll(savedModels);
             } else {
                 // Asociar y guardar puntos: si existe una sesión previa activa, añadimos (merge)
                 List<CalibrationPoint> existingPoints = calibrationPointRepo.findByCalibrationSessionIdOrderByPointOrderAsc(s.getId());
@@ -322,7 +326,9 @@ public class CalibrationManagementService {
                 if (existingPoints != null) allPoints.addAll(existingPoints);
                 allPoints.addAll(newlySaved);
 
-                s.setCalibrationPoints(allPoints);
+                // Update collection preserving JPA proxy (required for cascade delete-orphan)
+                s.getCalibrationPoints().clear();
+                s.getCalibrationPoints().addAll(allPoints);
                 savedPoints = newlySaved;
                 logger.info("Appended {} calibration points to session {} (total now={})", newlySaved.size(), s.getId(), allPoints.size());
 
@@ -340,7 +346,9 @@ public class CalibrationManagementService {
                     savedModels.add(regressionModelRepo.save(model));
                     logger.info("Calculated {} model with R² = {}", model.getModelType(), model.getRSquared());
                 }
-                s.setRegressionModels(savedModels);
+                // Update collection preserving JPA proxy (required for cascade delete-orphan)
+                s.getRegressionModels().clear();
+                s.getRegressionModels().addAll(savedModels);
             }
 
             // Determinar qué modelo activar:
@@ -408,10 +416,21 @@ public class CalibrationManagementService {
      */
     @Transactional
     public CalibrationSession getActiveCalibration(Long deviceId) {
+        return getActiveCalibration(deviceId, null);
+    }
+
+    @Transactional
+    public CalibrationSession getActiveCalibration(Long deviceId, CalibrationChannel channel) {
         // Prefer device-specific active calibration; archive expired sessions and fall back to a global session (deviceId = 0)
         LocalDateTime now = LocalDateTime.now();
 
-        Optional<CalibrationSession> opt = calibrationSessionRepo.findByDeviceIdAndIsActiveTrue(deviceId);
+        Optional<CalibrationSession> opt;
+        if (channel != null) {
+            opt = calibrationSessionRepo.findByDeviceIdAndChannelAndIsActiveTrue(deviceId, channel);
+        } else {
+            opt = calibrationSessionRepo.findByDeviceIdAndIsActiveTrue(deviceId);
+        }
+
         if (opt.isPresent()) {
             CalibrationSession s = opt.get();
             if (s.getExpirationDate() != null && s.getExpirationDate().isBefore(now)) {
@@ -423,7 +442,14 @@ public class CalibrationManagementService {
             }
         }
 
-        Optional<CalibrationSession> optGlobal = calibrationSessionRepo.findByDeviceIdAndIsActiveTrue(0L);
+        Optional<CalibrationSession> optGlobal;
+        if (channel != null) {
+            // Try global (deviceId=0) with channel
+            optGlobal = calibrationSessionRepo.findByDeviceIdAndChannelAndIsActiveTrue(0L, channel);
+        } else {
+            optGlobal = calibrationSessionRepo.findByDeviceIdAndIsActiveTrue(0L);
+        }
+
         if (optGlobal.isPresent()) {
             CalibrationSession g = optGlobal.get();
             if (g.getExpirationDate() != null && g.getExpirationDate().isBefore(now)) {

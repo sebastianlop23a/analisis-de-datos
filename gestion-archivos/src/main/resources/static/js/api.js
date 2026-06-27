@@ -114,6 +114,37 @@ class ApiClient {
     }
 
     /**
+     * Upload a multipart/form-data request.
+     */
+    async uploadMultipart(endpoint, formData) {
+        try {
+            const response = await Promise.race([
+                fetch(`${this.baseUrl}${endpoint}`, {
+                    method: 'POST',
+                    body: formData
+                }),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), API_CONFIG.TIMEOUT * 6)
+                )
+            ]);
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorBody}`);
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            }
+
+            return await response.text();
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
      * Upload CSV with optional PDF in the same multipart request.
      */
     async uploadFileWithPdf(endpoint, csvFile, pdfFile) {

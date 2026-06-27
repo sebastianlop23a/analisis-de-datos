@@ -23,7 +23,8 @@ let indicesDatosSeleccionados = new Set();
 /**
  * Set de índices de datos seleccionados en la tabla de datos registrados
  */
-let indicesSeleccionadosTabla = new Set();
+var indicesSeleccionadosTabla = window.indicesSeleccionadosTabla || new Set();
+window.indicesSeleccionadosTabla = indicesSeleccionadosTabla;
 
 /**
  * Array de datos seleccionados desde la tabla "Datos Registrados"

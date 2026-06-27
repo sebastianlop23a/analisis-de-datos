@@ -69,10 +69,11 @@ public class CalibrationCorrectionServicio {
      * @param subidoPor who is uploading
      * @return the legacy CalibrationCorrection record (for backward compatibility)
      */
-    public CalibrationCorrection uploadCalibration(
-            Long sensorId, 
-            MultipartFile archivo, 
-            String descripcion, 
+        public CalibrationCorrection uploadCalibration(
+            Long sensorId,
+            MultipartFile archivo,
+            com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel channel,
+            String descripcion,
             String subidoPor) throws IOException {
         
         Sensor sensor = sensorRepositorio.findById(sensorId)
@@ -88,6 +89,7 @@ public class CalibrationCorrectionServicio {
         CalibrationSession newCalibration = calibrationManagementService.uploadAndProcessCalibration(
             sensorId,
             archivo,
+            channel == null ? com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel.TEMPERATURE : channel,
             RegressionModelType.LINEAR,  // Default to linear model
             descripcion,
             subidoPor
