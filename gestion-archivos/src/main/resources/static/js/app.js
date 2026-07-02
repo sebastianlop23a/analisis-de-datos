@@ -1183,7 +1183,11 @@ function crearGraficoBoxplot(datosTemporales, analisis) {
     const ctx = document.getElementById('chartBoxplot');
     if (!ctx) return;
 
-    // Agrupar datos por sensor
+    if (chartBoxplot) {
+        chartBoxplot.destroy();
+        chartBoxplot = null;
+    }
+
     const datosPorSensor = {};
     datosTemporales.forEach(d => {
         const sensor = d.sensor || 'Sin Sensor';
@@ -1193,105 +1197,84 @@ function crearGraficoBoxplot(datosTemporales, analisis) {
         datosPorSensor[sensor].push(d.valor);
     });
 
-    // Calcular estadísticas por sensor
     const sensores = Object.keys(datosPorSensor);
-    const labels = sensores;
-    const datasets = [
-        {
-            label: 'Mínimo - Q1',
-            data: [],
-            backgroundColor: 'rgba(52, 152, 219, 0.6)',
-            borderColor: 'rgba(52, 152, 219, 1)',
-            borderWidth: 2
-        },
-        {
-            label: 'Q1 - Mediana',
-            data: [],
-            backgroundColor: 'rgba(46, 204, 113, 0.6)',
-            borderColor: 'rgba(46, 204, 113, 1)',
-            borderWidth: 2
-        },
-        {
-            label: 'Mediana - Q3',
-            data: [],
-            backgroundColor: 'rgba(241, 196, 15, 0.6)',
-            borderColor: 'rgba(241, 196, 15, 1)',
-            borderWidth: 2
-        },
-        {
-            label: 'Q3 - Máximo',
-            data: [],
-            backgroundColor: 'rgba(231, 76, 60, 0.6)',
-            borderColor: 'rgba(231, 76, 60, 1)',
-            borderWidth: 2
-        }
-    ];
-
-    sensores.forEach(sensor => {
-        const valores = datosPorSensor[sensor].sort((a, b) => a - b);
-        const q1 = calcularCuartil(valores, 0.25);
-        const mediana = calcularCuartil(valores, 0.50);
-        const q3 = calcularCuartil(valores, 0.75);
-        const min = Math.min(...valores);
-        const max = Math.max(...valores);
-
-        datasets[0].data.push(q1 - min);
-        datasets[1].data.push(mediana - q1);
-        datasets[2].data.push(q3 - mediana);
-        datasets[3].data.push(max - q3);
+    const boxplotData = sensores.map(sensor => {
+        const valores = datosPorSensor[sensor].slice().sort((a, b) => a - b);
+        return {
+            min: Math.min(...valores),
+            q1: calcularCuartil(valores, 0.25),
+            median: calcularCuartil(valores, 0.50),
+            q3: calcularCuartil(valores, 0.75),
+            max: Math.max(...valores)
+        };
     });
 
-    if (chartBoxplot) chartBoxplot.destroy();
+    if (!boxplotData.length) {
+        ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">Sin datos para mostrar</div>';
+        return;
+    }
 
-    chartBoxplot = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            scales: {
-                x: {
-                    stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Sensor'
+    try {
+        chartBoxplot = new Chart(ctx, {
+            type: 'boxplot',
+            data: {
+                labels: sensores,
+                datasets: [{
+                    label: 'Boxplot',
+                    data: boxplotData,
+                    backgroundColor: 'rgba(31, 119, 180, 0.24)',
+                    borderColor: '#1f77b4',
+                    borderWidth: 1.5,
+                    outlierColor: '#e74c3c',
+                    itemRadius: 0,
+                    padding: 0.2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                animation: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const item = boxplotData[context.dataIndex];
+                                if (!item) return '';
+                                return [
+                                    `Mín: ${item.min.toFixed(2)}`,
+                                    `Q1: ${item.q1.toFixed(2)}`,
+                                    `Mediana: ${item.median.toFixed(2)}`,
+                                    `Q3: ${item.q3.toFixed(2)}`,
+                                    `Máx: ${item.max.toFixed(2)}`
+                                ];
+                            }
+                        }
                     }
                 },
-                y: {
-                    stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Valor'
-                    }
-                }
-            },
-            plugins: {
-                legend: { display: true },
-                tooltip: {
-                    callbacks: {
-                        afterLabel: function(context) {
-                            const sensor = context.label;
-                            const valores = datosPorSensor[sensor].sort((a, b) => a - b);
-                            const q1 = calcularCuartil(valores, 0.25);
-                            const mediana = calcularCuartil(valores, 0.50);
-                            const q3 = calcularCuartil(valores, 0.75);
-                            const min = Math.min(...valores);
-                            const max = Math.max(...valores);
-
-                            if (context.datasetIndex === 0) return `Mín: ${min.toFixed(2)}, Q1: ${q1.toFixed(2)}`;
-                            if (context.datasetIndex === 1) return `Q1: ${q1.toFixed(2)}, Mediana: ${mediana.toFixed(2)}`;
-                            if (context.datasetIndex === 2) return `Mediana: ${mediana.toFixed(2)}, Q3: ${q3.toFixed(2)}`;
-                            if (context.datasetIndex === 3) return `Q3: ${q3.toFixed(2)}, Máx: ${max.toFixed(2)}`;
-                            return '';
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Sensor'
+                        },
+                        ticks: {
+                            autoSkip: false
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Valor'
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.warn('No se pudo usar el plugin de boxplot especializado:', error);
+        ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">El plugin de boxplot no está disponible</div>';
+    }
 }
 
 function crearGraficoCuartiles(analisis) {
