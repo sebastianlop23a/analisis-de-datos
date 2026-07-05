@@ -1201,6 +1201,7 @@ function crearGraficoBoxplot(datosTemporales, analisis) {
     const boxplotData = sensores.map(sensor => {
         const valores = datosPorSensor[sensor].slice().sort((a, b) => a - b);
         return {
+            label: sensor,
             min: Math.min(...valores),
             q1: calcularCuartil(valores, 0.25),
             median: calcularCuartil(valores, 0.50),
@@ -1214,20 +1215,24 @@ function crearGraficoBoxplot(datosTemporales, analisis) {
         return;
     }
 
+    const valoresMinimos = boxplotData.map(item => item.min);
+    const valoresMaximos = boxplotData.map(item => item.max);
+    const minY = Math.min(...valoresMinimos);
+    const maxY = Math.max(...valoresMaximos);
+    const paddingY = Math.max((maxY - minY) * 0.08, 0.1);
+
     try {
         chartBoxplot = new Chart(ctx, {
-            type: 'boxplot',
+            type: 'bar',
             data: {
                 labels: sensores,
                 datasets: [{
                     label: 'Boxplot',
-                    data: boxplotData,
-                    backgroundColor: 'rgba(31, 119, 180, 0.24)',
-                    borderColor: '#1f77b4',
-                    borderWidth: 1.5,
-                    outlierColor: '#e74c3c',
-                    itemRadius: 0,
-                    padding: 0.2
+                    data: sensores.map(() => 1),
+                    backgroundColor: 'rgba(31, 119, 180, 0.00)',
+                    borderColor: 'rgba(31, 119, 180, 0.00)',
+                    borderWidth: 0,
+                    hoverBackgroundColor: 'rgba(31, 119, 180, 0.00)'
                 }]
             },
             options: {
@@ -1266,11 +1271,15 @@ function crearGraficoBoxplot(datosTemporales, analisis) {
                         title: {
                             display: true,
                             text: 'Valor'
-                        }
+                        },
+                        min: Math.max(minY - paddingY, 0),
+                        max: maxY + paddingY
                     }
                 }
             }
         });
+        chartBoxplot.boxplotData = boxplotData;
+        chartBoxplot.update();
     } catch (error) {
         console.warn('No se pudo usar el plugin de boxplot especializado:', error);
         ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;">El plugin de boxplot no está disponible</div>';
