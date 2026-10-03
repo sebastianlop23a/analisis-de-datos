@@ -154,15 +154,17 @@ function limpiarSeleccionTabla() {
  * Cargar todos los datos del archivo para selección
  */
 function cargarTodosDatosArchivo() {
+    const selectorDiv = document.getElementById('selectorDatosMasivos');
+    if (!selectorDiv) return;
+
     if (!datosAnalisisOriginales || datosAnalisisOriginales.length === 0) {
-        document.getElementById('selectorDatosMasivos').innerHTML = '<p style="color: #999; font-style: italic;">No hay datos disponibles</p>';
+        selectorDiv.innerHTML = '<p style="color: #999; font-style: italic;">No hay datos disponibles</p>';
         return;
     }
     
     datosArchivoDisponibles = datosAnalisisOriginales.slice(0, 50); // Máximo 50 para mostrar
     
     // Crear checkboxes selectores
-    const selectorDiv = document.getElementById('selectorDatosMasivos');
     selectorDiv.innerHTML = datosArchivoDisponibles.map((dato, idx) => `
         <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
             <input type="checkbox" 
@@ -184,14 +186,11 @@ function cargarTodosDatosArchivo() {
  * Cargar sensores disponibles en el extractor
  */
 function cargarSensoresExtractor() {
-    if (!datosAnalisisOriginales || datosAnalisisOriginales.length === 0) {
-        return;
-    }
-    
+    const select = document.getElementById('extractorSensor');
+    if (!select || !datosAnalisisOriginales || datosAnalisisOriginales.length === 0) return;
+
     // Obtener sensores únicos
     const sensoresUnicos = [...new Set(datosAnalisisOriginales.map(d => d.sensor).filter(s => s))];
-    
-    const select = document.getElementById('extractorSensor');
     select.innerHTML = '<option value="">Selecciona un sensor...</option>' +
         sensoresUnicos.map(sensor => `<option value="${sensor}">${sensor}</option>`).join('');
 }
@@ -704,5 +703,8 @@ window.cargarAnalisis = async function() {
     actualizarContadorSeleccionados();
     
     // Ocultar resultado del extractor
-    document.getElementById('extractorResultado').style.display = 'none';
+    const extractorResultado = document.getElementById('extractorResultado');
+    if (extractorResultado) {
+        extractorResultado.style.display = 'none';
+    }
 };
