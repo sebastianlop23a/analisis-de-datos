@@ -8,8 +8,9 @@ export const defaults = {
   borderWidth: 1,
   outlierRadius: 2,
   outlierColor: Chart.defaults.global.elements.rectangle.backgroundColor,
-  lowerColor: Chart.defaults.global.elements.rectangle.lowerColor,
-  medianColor: null,
+  lowerColor: '#FF6B6B',  // Rojo para la parte inferior
+  upperColor: '#4ECDC4',  // Turquesa para la parte superior
+  medianColor: '#000000', // Negro para la línea de mediana
   itemRadius: 0,
   itemStyle: 'circle',
   itemBackgroundColor: Chart.defaults.global.elements.rectangle.backgroundColor,

@@ -89,11 +89,24 @@ const BoxAndWiskers = Chart.elements.BoxAndWhiskers = ArrayElementBase.extend({
     const width = vm.width;
     const x0 = x - width / 2;
 
-    // Draw the q1>q3 box
-    if (boxplot.q3 > boxplot.q1) {
-      ctx.fillRect(x0, boxplot.q1, width, boxplot.q3 - boxplot.q1);
-    } else {
-      ctx.fillRect(x0, boxplot.q3, width, boxplot.q1 - boxplot.q3);
+    // Draw the upper part of the box with upperColor
+    if (vm.upperColor) {
+      ctx.fillStyle = vm.upperColor;
+      if (boxplot.q3 > boxplot.q1) {
+        ctx.fillRect(x0, boxplot.q1, width, boxplot.median - boxplot.q1);
+      } else {
+        ctx.fillRect(x0, boxplot.q3, width, boxplot.median - boxplot.q3);
+      }
+    }
+
+    // Draw the lower part of the box with lowerColor
+    if (vm.lowerColor) {
+      ctx.fillStyle = vm.lowerColor;
+      if (boxplot.q3 > boxplot.q1) {
+        ctx.fillRect(x0, boxplot.median, width, boxplot.q3 - boxplot.median);
+      } else {
+        ctx.fillRect(x0, boxplot.median, width, boxplot.q1 - boxplot.median);
+      }
     }
 
     // Draw the median line
@@ -104,17 +117,6 @@ const BoxAndWiskers = Chart.elements.BoxAndWhiskers = ArrayElementBase.extend({
     ctx.beginPath();
     ctx.moveTo(x0, boxplot.median);
     ctx.lineTo(x0 + width, boxplot.median);
-
-    // fill the part below the median with lowerColor
-    if (vm.lowerColor) {
-      ctx.fillStyle = vm.lowerColor;
-      if (boxplot.q3 > boxplot.q1) {
-        ctx.fillRect(x0, boxplot.median, width, boxplot.q3 - boxplot.median);
-      } else {
-        ctx.fillRect(x0, boxplot.median, width, boxplot.q1 - boxplot.median);
-      }
-    }
-
     ctx.closePath();
     ctx.stroke();
     ctx.restore();
@@ -144,11 +146,24 @@ const BoxAndWiskers = Chart.elements.BoxAndWhiskers = ArrayElementBase.extend({
     const height = vm.height;
     const y0 = y - height / 2;
 
-    // Draw the q1>q3 box
-    if (boxplot.q3 > boxplot.q1) {
-      ctx.fillRect(boxplot.q1, y0, boxplot.q3 - boxplot.q1, height);
-    } else {
-      ctx.fillRect(boxplot.q3, y0, boxplot.q1 - boxplot.q3, height);
+    // Draw the upper part of the box with upperColor
+    if (vm.upperColor) {
+      ctx.fillStyle = vm.upperColor;
+      if (boxplot.q3 > boxplot.q1) {
+        ctx.fillRect(boxplot.q1, y0, boxplot.median - boxplot.q1, height);
+      } else {
+        ctx.fillRect(boxplot.q3, y0, boxplot.median - boxplot.q3, height);
+      }
+    }
+
+    // Draw the lower part of the box with lowerColor
+    if (vm.lowerColor) {
+      ctx.fillStyle = vm.lowerColor;
+      if (boxplot.q3 > boxplot.q1) {
+        ctx.fillRect(boxplot.median, y0, boxplot.q3 - boxplot.median, height);
+      } else {
+        ctx.fillRect(boxplot.median, y0, boxplot.q1 - boxplot.median, height);
+      }
     }
 
     // Draw the median line
