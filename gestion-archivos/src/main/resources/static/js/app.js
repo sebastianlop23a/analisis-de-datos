@@ -5,6 +5,7 @@ let sensoresDisponibles = [];
 let sensoresSeleccionados = new Set();
 let sensoresExcluidos = new Set();
 let datosAnalisisOriginales = [];
+let datosFuenteGraficasSensores = [];
 let datosFiltradosActuales = null;
 let ultimoAnalisisFH = null;
 var indicesSeleccionadosTabla = window.indicesSeleccionadosTabla || new Set();
@@ -253,6 +254,7 @@ function obtenerDatosMaquinaDesdeFormulario() {
 
 async function submitFormMaquina() {
     console.log('Iniciando submitFormMaquina...');
+    const form = document.getElementById('formMaquina');
     const { datos, error } = obtenerDatosMaquinaDesdeFormulario();
     if (error) {
         showToast(error, 'warning');
@@ -262,16 +264,21 @@ async function submitFormMaquina() {
 
     console.log('Enviando datos:', JSON.stringify(datos));
 
-    const resultado = await crearMaquina(datos);
-    console.log('Resultado de crearMaquina:', resultado);
+    const maquinaId = form.dataset.maquinaId;
+    const resultado = maquinaId
+        ? await actualizarMaquina(Number(maquinaId), datos)
+        : await crearMaquina(datos);
+    console.log(maquinaId ? 'Resultado de actualizarMaquina:' : 'Resultado de crearMaquina:', resultado);
     
     if (resultado) {
-        document.getElementById('formMaquina').reset();
+        form.reset();
+        delete form.dataset.maquinaId;
+        document.querySelector('#formMaquina button[type="submit"]').textContent = 'Crear Máquina';
         console.log('Formulario reseteado, cargando máquinas...');
         await cargarMaquinas();
         await cargarSelectsEnsayos();
     } else {
-        console.error('Error: crearMaquina retornó null o false');
+        console.error(maquinaId ? 'Error: actualizarMaquina retornó null o false' : 'Error: crearMaquina retornó null o false');
     }
 }
 
@@ -336,27 +343,17 @@ async function editarMaquina(id) {
     document.getElementById('maquinaUnidad').value = maquina.unidadMedida;
     document.getElementById('maquinaDescripcion').value = maquina.descripcion || '';
     document.getElementById('maquinaUbicacion').value = maquina.ubicacion || '';
+    document.getElementById('maquinaCalcularFH').checked = maquina.calcularFH === true;
+    document.getElementById('maquinaParametroZ').value = maquina.parametroZ ?? 14.0;
 
     showSection('maquinas');
+    const form = document.getElementById('formMaquina');
+    form.dataset.maquinaId = id;
     document.querySelector('#formMaquina button').textContent = 'Actualizar Máquina';
-    document.getElementById('formMaquina').onsubmit = async (e) => {
-        e.preventDefault();
-        const { datos, error } = obtenerDatosMaquinaDesdeFormulario();
-        if (error) {
-            showToast(error, 'warning');
-            console.warn(error);
-            return;
-        }
-        await actualizarMaquina(id, datos);
-        document.getElementById('formMaquina').reset();
-        document.querySelector('#formMaquina button').textContent = 'Crear Máquina';
-        setupFormListeners();
-        await cargarMaquinas();
-    };
 }
 
 async function confirmarEliminarMaquina(id) {
-    if (confirm('¿Estás seguro de que deseas eliminar esta máquina?')) {
+    if (confirm('¿Eliminar esta máquina? Si tiene ensayos asociados, se desactivará para conservar el historial.')) {
         if (await eliminarMaquina(id)) {
             await cargarMaquinas();
         }
@@ -561,7 +558,7 @@ async function cargarMaquinas() {
         const selectEnsayo = document.getElementById('ensayoMaquina');
         if (selectEnsayo) {
             selectEnsayo.innerHTML = '<option value="">Selecciona una máquina</option>' +
-                maquinas.map(m => `<option value="${m.id}">${m.nombre} (${m.tipo})</option>`).join('');
+                maquinas.filter(m => m.activa).map(m => `<option value="${m.id}">${m.nombre} (${m.tipo})</option>`).join('');
         }
 
         const listHtml = maquinas.map(m => `
@@ -786,6 +783,7 @@ async function cargarAnalisis() {
         // Limpiar filtros y datos cuando no hay ensayo seleccionado
         limpiarFiltroHora();
         datosAnalisisOriginales = [];
+        datosFuenteGraficasSensores = [];
         const tbody = document.getElementById('tablaDatosBody');
         tbody.innerHTML = '<tr><td colspan="6" class="loading">Selecciona un ensayo para ver los datos</td></tr>';
         
@@ -835,6 +833,7 @@ async function cargarAnalisis() {
 
             // Guardar datos originales para filtrado, omitiendo sensores cuyos valores son todos cero
             datosAnalisisOriginales = [...datosFiltradosPorSensores];
+            datosFuenteGraficasSensores = [...datosAnalisisOriginales];
             
             const valoresOrdenados = datosAnalisisOriginales.map(d => d.valor).sort((a, b) => a - b);
             const q1 = calcularCuartil(valoresOrdenados, 0.25);
@@ -908,6 +907,7 @@ async function cargarAnalisis() {
             datosFiltradosActuales = null;
             window.datosFiltradosActuales = null;
             datosAnalisisOriginales = marcarDatosAnormales(datosAnalisisOriginales);
+            crearSelectoresSensores(datosAnalisisOriginales);
             const datosActivos = obtenerDatosAnalisisActivos();
 
             // Gráfico de distribución
@@ -1037,6 +1037,7 @@ async function onAnalisisDocumentoChange() {
         datosFiltradosActuales = null;
         window.datosFiltradosActuales = null;
         datosAnalisisOriginales = [...datosFiltrados];
+        datosFuenteGraficasSensores = [...datosAnalisisOriginales];
         datosAnalisisOriginales = marcarDatosAnormales(datosAnalisisOriginales);
 
         // Aplicar selección actual de sensores a los datos del documento
@@ -1741,7 +1742,7 @@ function construirAnotacionLimite(valor, escalaId, etiqueta, borderColor) {
     };
 }
 
-function crearDatasetLimite(valor, etiqueta, color, labels, yAxisID = 'yTemperatura') {
+function crearDatasetLimite(valor, etiqueta, color, labels, yAxisID = 'yTemperatura', borderDash = [6, 4]) {
     if (valor === null || valor === undefined || isNaN(Number(valor))) return null;
     return {
         label: etiqueta,
@@ -1749,7 +1750,7 @@ function crearDatasetLimite(valor, etiqueta, color, labels, yAxisID = 'yTemperat
         borderColor: color,
         backgroundColor: color,
         borderWidth: 2,
-        borderDash: [8, 4],
+        borderDash,
         pointRadius: 0,
         pointHoverRadius: 0,
         tension: 0,
@@ -1812,7 +1813,6 @@ function crearSelectoresSensores(datos) {
     container.innerHTML = sensoresAutorizados.map((sensor, index) => {
         const color = colores[index % colores.length];
         const isChecked = sensoresSeleccionados.has(sensor);
-        const sensorEscaped = JSON.stringify(sensor);
         
         return `
         <label style="
@@ -1832,7 +1832,7 @@ function crearSelectoresSensores(datos) {
             <input type="checkbox" 
                    value="${sensor}" 
                    ${isChecked ? 'checked' : ''}
-                   onchange="toggleSensor(${sensorEscaped})"
+                     onchange="toggleSensor(this.value)"
                    style="width: 16px; height: 16px; cursor: pointer;">
             <span style="
                 width: 12px; 
@@ -1880,8 +1880,13 @@ function toggleSensor(sensor) {
 }
 
 function crearGraficasPorSensor(datos) {
-    const datosFuente = datos && datos.length ? datos : obtenerDatosAnalisisActivos();
-    // Refrescar los selectores de sensores antes de filtrar los datos activos
+    const datosBase = datosFuenteGraficasSensores.length
+        ? datosFuenteGraficasSensores
+        : (datos && datos.length ? datos : datosAnalisisOriginales);
+    const inicio = document.getElementById('filtroHoraInicio')?.value;
+    const fin = document.getElementById('filtroHoraFin')?.value;
+    const datosFuente = inicio && fin ? filtrarDatosPorHora(datosBase, inicio, fin) : datosBase;
+
     crearSelectoresSensores(datosFuente);
 
     const datosActivos = filtrarDatosPorSensoresSeleccionados(datosFuente);
@@ -1889,10 +1894,7 @@ function crearGraficasPorSensor(datos) {
     console.log('crearGraficasPorSensor llamada con', datosActivos.length, 'datos');
     const sensoresValidos = obtenerSensoresConDatos(datosActivos);
     const datosFiltrados = datosActivos.filter(d => sensoresValidos.includes(String(d.sensor || 'Sin Sensor').trim()));
-    graficasSensoresData = datosFiltrados;
-    
-    // Refrescar los selectores de sensores con los sensores válidos
-    crearSelectoresSensores(datosFiltrados);
+    graficasSensoresData = datosFuente;
     
     const checkbox = document.getElementById('modoComparacion');
     const modoComparacion = checkbox ? checkbox.checked : false;
@@ -2107,7 +2109,6 @@ function crearGraficasIndividuales(datos) {
             }
         }
 
-        console.log(`Gráficas creadas para serial ${grupo.baseSensor}`);
         grupoIndex += 1;
         setTimeout(renderGrupo, 25);
     }
@@ -2128,6 +2129,43 @@ function resetZoom(index) {
 function resetZoomComparacion() {
     if (chartsSensoresIndividuales[0]) {
         chartsSensoresIndividuales[0].resetZoom();
+    }
+}
+
+function controlarVistaComparacion(accion) {
+    const chart = chartsSensoresIndividuales.find(item => item.canvas && item.canvas.id === 'chartComparacion');
+    if (!chart) return;
+
+    if (accion === 'reset') {
+        chart.resetZoom();
+        return;
+    }
+
+    if (accion === 'zoomIn' || accion === 'zoomOut') {
+        if (typeof chart.zoom !== 'function') {
+            showToast('Los controles de zoom no están disponibles', 'error');
+            return;
+        }
+        chart.zoom(accion === 'zoomIn' ? 1.25 : 0.8);
+        return;
+    }
+
+    if (typeof chart.pan !== 'function' || !chart.chartArea) {
+        showToast('Los controles de desplazamiento no están disponibles', 'error');
+        return;
+    }
+
+    const pasoX = (chart.chartArea.right - chart.chartArea.left) * 0.2;
+    const pasoY = (chart.chartArea.bottom - chart.chartArea.top) * 0.2;
+    const desplazamientos = {
+        left: { x: pasoX, y: 0 },
+        right: { x: -pasoX, y: 0 },
+        up: { x: 0, y: pasoY },
+        down: { x: 0, y: -pasoY }
+    };
+
+    if (desplazamientos[accion]) {
+        chart.pan(desplazamientos[accion]);
     }
 }
 
@@ -2171,12 +2209,18 @@ function crearGraficaComparacion(datos) {
                 <h4 style="color: var(--color-dark); margin: 0;">
                     📊 Comparación de Sensores (${sensores.length} sensores)
                 </h4>
-                <button onclick="resetZoomComparacion()" class="btn btn-sm" style="padding: 5px 12px; font-size: 12px; background: #95a5a6;">
-                    🔄 Restablecer Zoom
-                </button>
+                <div role="group" aria-label="Controles de navegación de la gráfica" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                    <button type="button" onclick="controlarVistaComparacion('zoomIn')" class="btn btn-sm" title="Acercar" aria-label="Acercar" style="padding: 5px 10px;">＋ Zoom</button>
+                    <button type="button" onclick="controlarVistaComparacion('zoomOut')" class="btn btn-sm" title="Alejar" aria-label="Alejar" style="padding: 5px 10px;">− Zoom</button>
+                    <button type="button" onclick="controlarVistaComparacion('left')" class="btn btn-sm" title="Desplazar hacia valores anteriores" aria-label="Desplazar a la izquierda" style="padding: 5px 10px;">←</button>
+                    <button type="button" onclick="controlarVistaComparacion('right')" class="btn btn-sm" title="Desplazar hacia valores posteriores" aria-label="Desplazar a la derecha" style="padding: 5px 10px;">→</button>
+                    <button type="button" onclick="controlarVistaComparacion('up')" class="btn btn-sm" title="Desplazar hacia valores mayores" aria-label="Desplazar hacia arriba" style="padding: 5px 10px;">↑</button>
+                    <button type="button" onclick="controlarVistaComparacion('down')" class="btn btn-sm" title="Desplazar hacia valores menores" aria-label="Desplazar hacia abajo" style="padding: 5px 10px;">↓</button>
+                    <button type="button" onclick="controlarVistaComparacion('reset')" class="btn btn-sm" title="Restablecer zoom y desplazamiento" aria-label="Restablecer vista" style="padding: 5px 10px; background: #95a5a6;">⟲ Restablecer</button>
+                </div>
             </div>
             <p style="font-size: 12px; color: #888; margin: 0 0 10px 0;">
-                🔍 <em>Seleccionar: Mantén presionado y arrastra | Rueda del ratón: Zoom | Arrastrar: Mover | Doble clic: Restablecer</em>
+                🔍 <em>Usa los controles para mover la vista; rueda del ratón o pellizco para zoom; arrastra para ampliar un área.</em>
             </p>
             <canvas id="chartComparacion"></canvas>
         </div>
@@ -2246,11 +2290,11 @@ function crearGraficaComparacion(datos) {
         const tieneHumedad = sensores.some(sensor => esSensorHumedad(sensor));
 
         if (maquinaLimites.limiteInferior !== undefined) {
-            const limiteInf = crearDatasetLimite(maquinaLimites.limiteInferior, 'Límite Inf', 'rgba(46, 204, 113, 1)', labels, 'yTemperatura');
+            const limiteInf = crearDatasetLimite(maquinaLimites.limiteInferior, 'Límite temp. inferior (°C)', 'rgba(46, 204, 113, 1)', labels, 'yTemperatura', []);
             if (limiteInf) temperaturaLimitDatasets.push(limiteInf);
         }
         if (maquinaLimites.limiteSuperior !== undefined) {
-            const limiteSup = crearDatasetLimite(maquinaLimites.limiteSuperior, 'Límite Sup', 'rgba(231, 76, 60, 1)', labels, 'yTemperatura');
+            const limiteSup = crearDatasetLimite(maquinaLimites.limiteSuperior, 'Límite temp. superior (°C)', 'rgba(231, 76, 60, 1)', labels, 'yTemperatura', []);
             if (limiteSup) temperaturaLimitDatasets.push(limiteSup);
         }
 
@@ -2261,11 +2305,11 @@ function crearGraficaComparacion(datos) {
         if (tieneHumedad) {
             const humedadLimitDatasets = [];
             if (maquinaLimites.limiteInferiorHumedad !== undefined) {
-                const limiteInfHum = crearDatasetLimite(maquinaLimites.limiteInferiorHumedad, 'Límite Inf Humedad', 'rgba(46, 204, 113, 1)', labels, 'yHumedad');
+                const limiteInfHum = crearDatasetLimite(maquinaLimites.limiteInferiorHumedad, 'Límite humedad inferior (%)', 'rgba(0, 150, 180, 1)', labels, 'yHumedad', [8, 4]);
                 if (limiteInfHum) humedadLimitDatasets.push(limiteInfHum);
             }
             if (maquinaLimites.limiteSuperiorHumedad !== undefined) {
-                const limiteSupHum = crearDatasetLimite(maquinaLimites.limiteSuperiorHumedad, 'Límite Sup Humedad', 'rgba(231, 76, 60, 1)', labels, 'yHumedad');
+                const limiteSupHum = crearDatasetLimite(maquinaLimites.limiteSuperiorHumedad, 'Límite humedad superior (%)', 'rgba(142, 68, 173, 1)', labels, 'yHumedad', [8, 4]);
                 if (limiteSupHum) humedadLimitDatasets.push(limiteSupHum);
             }
             if (humedadLimitDatasets.length > 0) {
@@ -4391,22 +4435,26 @@ async function actualizarEstadisticasLogtag() {
 async function subirLogtagDocumento() {
     const ensayoId = document.getElementById('logtagEnsayo').value;
     const categoria = document.getElementById('logtagCategoria').value;
-    const archivo = document.getElementById('logtagArchivo').files[0];
+    const archivos = Array.from(document.getElementById('logtagArchivo').files);
     const descripcion = document.getElementById('logtagDescripcion').value;
     const lote = document.getElementById('logtagLote') ? document.getElementById('logtagLote').value : '';
     const subidoPorEl = document.getElementById('logtagSubidoPor');
     const subidoPor = subidoPorEl ? (subidoPorEl.value || 'Sistema') : 'Sistema';
 
-    if (!categoria || !archivo) {
-        showToast('Debe seleccionar el tipo de documento y un archivo', 'warning');
+    if (!categoria || archivos.length === 0) {
+        showToast('Debe seleccionar el tipo de documento y al menos un archivo', 'warning');
+        return;
+    }
+    if (categoria === 'LOGTAG' && !ensayoId) {
+        showToast('Selecciona un ensayo para analizar los datos LOGTAG', 'warning');
         return;
     }
 
     try {
-        showToast('Subiendo documento...', 'info');
+        showToast(`Subiendo ${archivos.length} documento(s)...`, 'info');
         
-        const resultado = await subirLogtag(
-            archivo,
+        const respuesta = await subirLogtags(
+            archivos,
             ensayoId ? parseInt(ensayoId) : null,
             categoria,
             descripcion,
@@ -4414,11 +4462,23 @@ async function subirLogtagDocumento() {
             lote
         );
         
-        // Mostrar advertencia si el sistema cambió la categoría
-        if (resultado.notas) {
-            showToast(`Documento subido: ${resultado.notas}`, 'warning');
-        } else {
-            showToast('Documento subido correctamente', 'success');
+        const resultados = respuesta.resultados || [];
+        const exitosos = resultados.filter(resultado => resultado.exito);
+        const fallidos = resultados.filter(resultado => !resultado.exito);
+        const avisosAnalisis = exitosos
+            .filter(resultado => resultado.documento && !resultado.documento.procesado)
+            .map(resultado => resultado.documento && resultado.documento.notas)
+            .filter(Boolean);
+        const resumen = `${exitosos.length} documento(s) subido(s), ${fallidos.length} con error.`;
+        const detalleAviso = avisosAnalisis.length ? ` ${avisosAnalisis[0]}` : '';
+        const detalleError = fallidos.length ? ` ${fallidos[0].error}` : '';
+        showToast(resumen + detalleAviso + detalleError,
+            fallidos.length || avisosAnalisis.length ? 'warning' : 'success');
+        if (fallidos.length) {
+            console.error('Fallos al subir documentos:', fallidos);
+        }
+        if (avisosAnalisis.length) {
+            console.warn('Avisos de análisis:', avisosAnalisis);
         }
         
         // Limpiar formulario
@@ -4911,7 +4971,7 @@ function filtrarDatosPorSensoresSeleccionados(datos) {
     }
 
     if (!sensoresSeleccionados || sensoresSeleccionados.size === 0) {
-        return resultado;
+        return [];
     }
 
     return resultado.filter(dato => sensoresSeleccionados.has(String(dato.sensor || 'Sin Sensor').trim()));

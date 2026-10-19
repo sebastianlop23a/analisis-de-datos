@@ -445,7 +445,9 @@ public class CargaDatosServicio {
                 }
 
                 logger.info("Formato logtag plano detectado, registros generados: {}", resultado.size());
-                return resultado;
+                List<DatoEnsayoTemporal> datosCorregidos = aplicarCorrecciones(resultado, ensayoId);
+                logger.info("Correcciones LogTag aplicadas: {} registros", datosCorregidos.size());
+                return datosCorregidos;
             }
 
             // Si no se detectaron columnas de sensor explícitas, intentar detectar columnas numéricas en la segunda fila
@@ -577,6 +579,52 @@ public class CargaDatosServicio {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String legacyModelKey(String sensorKey, RegressionModelType modelType) {
+        if (sensorKey == null || modelType == null) {
+            return sensorKey;
+        }
+        return sensorKey + "#" + modelType.name();
+    }
+
+    private double calculateDirectLegacyOffset(CoeficientesCorreccion coef, RegressionModelType modelType) {
+        if (coef == null || modelType == null) {
+            return 0.0;
+        }
+
+        double a = coef.getCoeficienteA();
+        double b = coef.getCoeficienteB();
+        double c = coef.getCoeficienteC();
+        double d = coef.getCoeficienteD();
+
+        // Direct correction by selected type (sum/subtract fixed offset).
+        if (modelType == RegressionModelType.LINEAR) {
+            return a + b;
+        }
+        if (modelType == RegressionModelType.QUADRATIC) {
+            return a + b + c;
+        }
+        return a + b + c + d;
+    }
+
+    private double calculateDirectNewSystemOffset(RegressionModel model) {
+        if (model == null || model.getModelType() == null) {
+            return 0.0;
+        }
+
+        double c0 = model.getCoefficient0() != null ? model.getCoefficient0() : 0.0;
+        double c1 = model.getCoefficient1() != null ? model.getCoefficient1() : 0.0;
+        double c2 = model.getCoefficient2() != null ? model.getCoefficient2() : 0.0;
+        double c3 = model.getCoefficient3() != null ? model.getCoefficient3() : 0.0;
+
+        if (model.getModelType() == RegressionModelType.LINEAR) {
+            return c1 + c0;
+        }
+        if (model.getModelType() == RegressionModelType.QUADRATIC) {
+            return c1 + c0 + c2;
+        }
+        return c1 + c0 + c2 + c3;
     }
 
     private String normalizeHeaderText(String text) {
@@ -838,6 +886,12 @@ public class CargaDatosServicio {
 
             logger.info("Total de líneas en archivo: " + allLines.size());
 
+            if (esFormatoLogTagCsv(allLines)) {
+                List<DatoEnsayoTemporal> datosLogTag = parsearLogTagCsv(allLines, archivo.getOriginalFilename(), ensayoId, maquina);
+                logger.info("CSV LogTag detectado: {} registros de temperatura/humedad", datosLogTag.size());
+                return aplicarCorrecciones(datosLogTag, ensayoId);
+            }
+
             // Intentar extraer nombres de sensor desde una fila de encabezado válida
             String[] headerSensors = null;
             int headerRowIndex = -1;
@@ -964,6 +1018,30 @@ public class CargaDatosServicio {
      * Detecta automáticamente si el separador del CSV es coma (,) o punto y coma (;)
      */
     private char detectSeparator(MultipartFile archivo) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(archivo.getInputStream(), StandardCharsets.UTF_8))) {
+            int commas = 0;
+            int semicolons = 0;
+            int scannedLines = 0;
+            String line;
+            while (scannedLines < 5 && (line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                boolean inQuotes = false;
+                for (int i = 0; i < line.length(); i++) {
+                    char current = line.charAt(i);
+                    if (current == '"') {
+                        inQuotes = !inQuotes;
+                    } else if (!inQuotes && current == ',') {
+                        commas++;
+                    } else if (!inQuotes && current == ';') {
+                        semicolons++;
+                    }
+                }
+                scannedLines++;
+            }
+            if (semicolons > commas) return ';';
+            if (commas > semicolons) return ',';
+        }
+
         try (InputStreamReader streamReader = new InputStreamReader(archivo.getInputStream(), StandardCharsets.UTF_8)) {
             CSVReader commaReader = new CSVReaderBuilder(streamReader)
                     .withCSVParser(new CSVParserBuilder().withSeparator(',').build())
@@ -1008,6 +1086,89 @@ public class CargaDatosServicio {
         }
         
         return ','; // Default to comma
+    }
+
+    private boolean esFormatoLogTagCsv(List<String[]> lineas) {
+        if (lineas == null) return false;
+        for (String[] fila : lineas) {
+            if (fila == null || fila.length == 0) continue;
+            String secuencia = limpiarBOM(fila[0]);
+            if (secuencia.isEmpty()) continue;
+            if (fila.length < 5) return false;
+            try {
+                Integer.parseInt(secuencia);
+                LocalDate.parse(fila[1].trim(), DateTimeFormatter.ISO_LOCAL_DATE);
+                LocalTime.parse(fila[2].trim(), DateTimeFormatter.ISO_LOCAL_TIME);
+                parsearNumeroLogTag(fila[3]);
+                parsearNumeroLogTag(fila[4]);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private List<DatoEnsayoTemporal> parsearLogTagCsv(List<String[]> lineas, String nombreArchivo,
+                                                       Long ensayoId, Maquina maquina) {
+        List<DatoEnsayoTemporal> datos = new ArrayList<>();
+        String sensorBase = obtenerSensorLogTag(nombreArchivo);
+        int numeroLinea = 0;
+
+        for (String[] fila : lineas) {
+            numeroLinea++;
+            if (fila == null || fila.length < 5) continue;
+            try {
+                int secuencia = Integer.parseInt(limpiarBOM(fila[0]));
+                LocalDate fecha = LocalDate.parse(fila[1].trim(), DateTimeFormatter.ISO_LOCAL_DATE);
+                LocalTime hora = LocalTime.parse(fila[2].trim(), DateTimeFormatter.ISO_LOCAL_TIME);
+                LocalDateTime timestamp = LocalDateTime.of(fecha, hora);
+                agregarDatoLogTag(datos, ensayoId, timestamp, parsearNumeroLogTag(fila[3]),
+                    sensorBase, secuencia, false, maquina);
+                agregarDatoLogTag(datos, ensayoId, timestamp, parsearNumeroLogTag(fila[4]),
+                    sensorBase + "_HR", secuencia, true, maquina);
+            } catch (Exception e) {
+                logger.warn("Fila LogTag CSV inválida, línea {}: {}", numeroLinea, String.join(";", fila));
+            }
+        }
+        return datos;
+    }
+
+    private void agregarDatoLogTag(List<DatoEnsayoTemporal> datos, Long ensayoId, LocalDateTime timestamp,
+                                   double valor, String sensor, int secuencia, boolean humedad, Maquina maquina) {
+        DatoEnsayoTemporal dato = new DatoEnsayoTemporal();
+        dato.setEnsayoId(ensayoId);
+        dato.setTimestamp(timestamp);
+        dato.setValor(valor);
+        dato.setFuente("LOGTAG_CSV");
+        dato.setSensor(sensor);
+        dato.setNumeroSecuencia(secuencia);
+
+        boolean anormal = false;
+        if (maquina != null) {
+            Double limiteInferior = humedad ? maquina.getLimiteInferiorHumedad() : maquina.getLimiteInferior();
+            Double limiteSuperior = humedad ? maquina.getLimiteSuperiorHumedad() : maquina.getLimiteSuperior();
+            if (limiteInferior != null && limiteSuperior != null) {
+                anormal = valor < limiteInferior || valor > limiteSuperior;
+            }
+        }
+        dato.setAnormal(anormal);
+        datos.add(dato);
+    }
+
+    private String obtenerSensorLogTag(String nombreArchivo) {
+        if (nombreArchivo == null) return "sensor_1";
+        Matcher matcher = Pattern.compile("(?i)(?:sensor[_\\s-]*|[ts][_\\s-]*)(\\d+)(?=\\D|$)")
+            .matcher(nombreArchivo);
+        return matcher.find() ? "sensor_" + Integer.parseInt(matcher.group(1)) : "sensor_1";
+    }
+
+    private String limpiarBOM(String valor) {
+        return valor == null ? "" : valor.replace(String.valueOf((char) 0xFEFF), "").trim();
+    }
+
+    private double parsearNumeroLogTag(String valor) {
+        return Double.parseDouble(limpiarBOM(valor).replace(',', '.'));
     }
     
     // Agregar dato temporal al ensayo (para que aparezca en análisis)
@@ -1512,11 +1673,16 @@ public class CargaDatosServicio {
                                     }
                                 }
                                 if (rm != null) {
-                                    correctedValue = dato.getValor() + rm.applyCorrectionModel(dato.getValor());
-                                    // mark which model used via appliedCalibrationId (session id) and could store model type in metadata if needed
+                                    double correctionOffset = calculateDirectNewSystemOffset(rm);
+                                    correctedValue = dato.getValor() + correctionOffset;
                                 } else {
-                                    // fallback to session default
-                                    correctedValue = newCalibration.applyCorrection(dato.getValor());
+                                    RegressionModel active = newCalibration.getActiveRegressionModel();
+                                    if (active != null) {
+                                        double correctionOffset = calculateDirectNewSystemOffset(active);
+                                        correctedValue = dato.getValor() + correctionOffset;
+                                    } else {
+                                        correctedValue = newCalibration.applyCorrection(dato.getValor());
+                                    }
                                 }
                             } else {
                                 correctedValue = newCalibration.applyCorrection(dato.getValor());
@@ -1531,14 +1697,14 @@ public class CargaDatosServicio {
                             logger.debug("New calibration for sensor {} has no active model, trying legacy: {}", 
                                 sensorName, e.getMessage());
                             // Fallthrough to legacy system
-                            datoCorregido = aplicarCorreccionLegacy(dato, legacyCoefficients, legacyCorrectionIndexes);
+                            datoCorregido = aplicarCorreccionLegacy(dato, legacyCoefficients, legacyCorrectionIndexes, ensayoPreferredModel);
                             if (datoCorregido != dato) {
                                 correccionesAplicadas++;
                             }
                         }
                     } else {
                         // Use legacy system
-                        datoCorregido = aplicarCorreccionLegacy(dato, legacyCoefficients, legacyCorrectionIndexes);
+                        datoCorregido = aplicarCorreccionLegacy(dato, legacyCoefficients, legacyCorrectionIndexes, ensayoPreferredModel);
                         if (datoCorregido != dato) {
                             correccionesAplicadas++;
                         }
@@ -1631,7 +1797,7 @@ public class CargaDatosServicio {
             }
 
             Maquina maquina = optEnsayo.get().getMaquina();
-            if (maquina == null || maquina.getLimiteInferior() == null || maquina.getLimiteSuperior() == null) {
+            if (maquina == null) {
                 return;
             }
 
@@ -1641,8 +1807,15 @@ public class CargaDatosServicio {
                     continue;
                 }
 
-                boolean anormalCorregido = dato.getValor() < maquina.getLimiteInferior()
-                        || dato.getValor() > maquina.getLimiteSuperior();
+                boolean humedad = normalizarNombreSensor(dato.getSensor()).endsWith("_hr");
+                Double limiteInferior = humedad ? maquina.getLimiteInferiorHumedad() : maquina.getLimiteInferior();
+                Double limiteSuperior = humedad ? maquina.getLimiteSuperiorHumedad() : maquina.getLimiteSuperior();
+                if (limiteInferior == null || limiteSuperior == null) {
+                    continue;
+                }
+
+                boolean anormalCorregido = dato.getValor() < limiteInferior
+                    || dato.getValor() > limiteSuperior;
                 boolean anormalAnterior = Boolean.TRUE.equals(dato.getAnormal());
 
                 if (anormalAnterior != anormalCorregido) {
@@ -1665,12 +1838,22 @@ public class CargaDatosServicio {
     private DatoEnsayoTemporal aplicarCorreccionLegacy(
             DatoEnsayoTemporal dato, 
             Map<String, CoeficientesCorreccion> coeficientesCorreccion,
-            Map<String, Integer> legacyCorrectionIndexes) {
+            Map<String, Integer> legacyCorrectionIndexes,
+            RegressionModelType ensayoPreferredModel) {
         
         String sensorName = dato.getSensor();
         String normalizedSensorName = normalizarNombreSensor(sensorName);
         
-        CoeficientesCorreccion coef = coeficientesCorreccion.get(normalizedSensorName);
+        CoeficientesCorreccion coef = null;
+        if (ensayoPreferredModel != null) {
+            coef = coeficientesCorreccion.get(legacyModelKey(normalizedSensorName, ensayoPreferredModel));
+            if (coef == null) {
+                coef = coeficientesCorreccion.get(legacyModelKey(sensorName, ensayoPreferredModel));
+            }
+        }
+        if (coef == null) {
+            coef = coeficientesCorreccion.get(normalizedSensorName);
+        }
         if (coef == null) {
             coef = coeficientesCorreccion.get(sensorName);
         }
@@ -1692,15 +1875,21 @@ public class CargaDatosServicio {
                         sensorName, dato.getValor(), correctionOffset, correctedValue);
                 } else {
                     // Fallback to polynomial correction if direct values are exhausted
-                    double correctionOffset = coef.aplicarCorreccion(dato.getValor());
+                    double correctionOffset = ensayoPreferredModel != null
+                        ? calculateDirectLegacyOffset(coef, ensayoPreferredModel)
+                        : coef.aplicarCorreccion(dato.getValor());
                     correctedValue = dato.getValor() + correctionOffset;
-                    logger.debug("Applied legacy polynomial correction to sensor {}: {} + {} = {}", 
+                    logger.debug("Applied legacy {} correction to sensor {}: {} + {} = {}",
+                        (ensayoPreferredModel != null ? "direct" : "polynomial"),
                         sensorName, dato.getValor(), correctionOffset, correctedValue);
                 }
             } else {
-                double correctionOffset = coef.aplicarCorreccion(dato.getValor());
+                double correctionOffset = ensayoPreferredModel != null
+                    ? calculateDirectLegacyOffset(coef, ensayoPreferredModel)
+                    : coef.aplicarCorreccion(dato.getValor());
                 correctedValue = dato.getValor() + correctionOffset;
-                logger.debug("Applied legacy polynomial correction to sensor {}: {} + {} = {}", 
+                logger.debug("Applied legacy {} correction to sensor {}: {} + {} = {}",
+                    (ensayoPreferredModel != null ? "direct" : "polynomial"),
                     sensorName, dato.getValor(), correctionOffset, correctedValue);
             }
 
@@ -1822,17 +2011,39 @@ public class CargaDatosServicio {
 
                 if (partes.length >= 5) {
                     try {
-                        String sensorOriginal = partes[0].trim().replace("\"", "");
-                        String sensor = normalizarNombreSensor(sensorOriginal);
+                        String primeraColumna = partes[0].trim().replace("\"", "");
+                        String sensorOriginal = primeraColumna;
+                        RegressionModelType modelType = mapStringToModelType(primeraColumna);
+                        int coefIndex;
+                        String sensor;
 
-                        double coefA = parsearCoeficiente(partes[1]);
-                        double coefB = parsearCoeficiente(partes[2]);
-                        double coefC = parsearCoeficiente(partes[3]);
-                        double coefD = parsearCoeficiente(partes[4]);
+                        if (modelType != null) {
+                            sensor = expectedKey != null ? expectedKey : "default";
+                            coefIndex = 1;
+                        } else {
+                            sensor = normalizarNombreSensor(sensorOriginal);
+                            coefIndex = 1;
+                        }
+
+                        double coefA = parsearCoeficiente(partes[coefIndex]);
+                        double coefB = parsearCoeficiente(partes[coefIndex + 1]);
+                        double coefC = parsearCoeficiente(partes[coefIndex + 2]);
+                        double coefD = parsearCoeficiente(partes[coefIndex + 3]);
 
                         CoeficientesCorreccion coef = new CoeficientesCorreccion(sensor, coefA, coefB, coefC, coefD);
                         coeficientes.put(sensor, coef);
-                        if (!sensor.equals(sensorOriginal)) coeficientes.put(sensorOriginal, coef);
+                        if (modelType == null && !sensor.equals(sensorOriginal)) coeficientes.put(sensorOriginal, coef);
+
+                        if (modelType == null && partes.length > coefIndex + 4) {
+                            modelType = mapStringToModelType(partes[coefIndex + 4]);
+                        }
+
+                        if (modelType != null) {
+                            coeficientes.put(legacyModelKey(sensor, modelType), coef);
+                            if (!sensor.equals(sensorOriginal) && !"default".equalsIgnoreCase(sensorOriginal)) {
+                                coeficientes.put(legacyModelKey(sensorOriginal, modelType), coef);
+                            }
+                        }
                     } catch (Exception e) {
                         logger.warn("Error parseando línea de calibración: " + e.getMessage());
                     }
@@ -1919,13 +2130,19 @@ public class CargaDatosServicio {
                         if (partes.length >= 4) { // Necesitamos al menos A,B,C,D
                             String sensor;
                             int coefIndex = 0;
+                            RegressionModelType modelType = null;
                             
                             // Verificar si la primera columna es un nombre de sensor
                             String primeraColumna = partes[0].trim().replace("\"", "");
                             boolean primeraColumnaEsSensor = false;
+                            RegressionModelType modelTypePrimeraColumna = mapStringToModelType(primeraColumna);
                             
-                            // Intentar determinar si es un nombre de sensor
-                            if (primeraColumna.matches("(?i)(sensor|T)\\s*\\d+") || 
+                            // Primero manejar filas donde la primera columna es el tipo de modelo.
+                            if (modelTypePrimeraColumna != null) {
+                                modelType = modelTypePrimeraColumna;
+                                sensor = normalizarNombreSensor(calibrationCorr.getSensor().getCodigo());
+                                coefIndex = 1;
+                            } else if (primeraColumna.matches("(?i)(sensor|T)\\s*\\d+") ||
                                 primeraColumna.matches("(?i)sensor_\\d+") ||
                                 (primeraColumna.length() > 0 && !primeraColumna.matches("[-+]?\\d*\\.?\\d+([eE][-+]?\\d+)?"))) {
                                 primeraColumnaEsSensor = true;
@@ -1952,8 +2169,18 @@ public class CargaDatosServicio {
                                 if (partes.length > coefIndex + 8) coef.setCoLinHum(parsearCoeficiente(partes[coefIndex + 8]));
                             } catch (Exception ignore) {}
 
+                            if (modelType == null && partes.length > coefIndex + 4) {
+                                modelType = mapStringToModelType(partes[coefIndex + 4]);
+                            }
+
                             coeficientes.put(sensor, coef);
                             if (primeraColumnaEsSensor && !sensor.equals(primeraColumna)) coeficientes.put(primeraColumna, coef);
+                            if (modelType != null) {
+                                coeficientes.put(legacyModelKey(sensor, modelType), coef);
+                                if (primeraColumnaEsSensor && !sensor.equals(primeraColumna)) {
+                                    coeficientes.put(legacyModelKey(primeraColumna, modelType), coef);
+                                }
+                            }
                         } else if (partes.length >= 3) {
                             // legacy format: timestamp,sensor,valor_corregido
                             String sensor = partes[1].trim().replace("\"", "");
@@ -2015,13 +2242,19 @@ public class CargaDatosServicio {
                         try {
                             String sensor;
                             int coefIndex = 0;
+                            RegressionModelType modelType = null;
                             
                             // Verificar si la primera columna es un nombre de sensor o directamente coeficientes
                             String primeraColumna = partes[0].trim().replace("\"", "");
                             boolean primeraColumnaEsSensor = false;
+                            RegressionModelType modelTypePrimeraColumna = mapStringToModelType(primeraColumna);
                             
-                            // Intentar determinar si es un nombre de sensor
-                            if (primeraColumna.matches("(?i)(sensor|T)\\s*\\d+") || 
+                            // Primero manejar filas donde la primera columna es el tipo de modelo.
+                            if (modelTypePrimeraColumna != null) {
+                                modelType = modelTypePrimeraColumna;
+                                sensor = "default";
+                                coefIndex = 1;
+                            } else if (primeraColumna.matches("(?i)(sensor|T)\\s*\\d+") ||
                                 primeraColumna.matches("(?i)sensor_\\d+") ||
                                 primeraColumna.length() > 0 && !primeraColumna.matches("[-+]?\\d*\\.?\\d+([eE][-+]?\\d+)?")) {
                                 primeraColumnaEsSensor = true;
@@ -2053,11 +2286,21 @@ public class CargaDatosServicio {
                                 // Ignorar errores en campos opcionales
                                 logger.debug("Error parseando campos opcionales en línea " + lineasProcesadas + ": " + e.getMessage());
                             }
+
+                            if (modelType == null && partes.length > coefIndex + 4) {
+                                modelType = mapStringToModelType(partes[coefIndex + 4]);
+                            }
                             
                             // Agregar con clave original y normalizada
                             coeficientes.put(sensor, coef);
                             if (primeraColumnaEsSensor && !sensor.equals(primeraColumna)) {
                                 coeficientes.put(primeraColumna, coef);
+                            }
+                            if (modelType != null) {
+                                coeficientes.put(legacyModelKey(sensor, modelType), coef);
+                                if (primeraColumnaEsSensor && !sensor.equals(primeraColumna)) {
+                                    coeficientes.put(legacyModelKey(primeraColumna, modelType), coef);
+                                }
                             }
                             
                             logger.debug("Coeficientes cargados para " + sensor + ": A=" + coefA + ", B=" + coefB + ", C=" + coefC + ", D=" + coefD);

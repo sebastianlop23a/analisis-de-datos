@@ -79,6 +79,48 @@ public class LogtagControlador {
                 .body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PostMapping("/lote")
+    public ResponseEntity<?> subirDocumentos(
+            @RequestParam("archivos") List<MultipartFile> archivos,
+            @RequestParam(value = "ensayoId", required = false) Long ensayoId,
+            @RequestParam("categoria") String categoria,
+            @RequestParam(value = "descripcion", required = false) String descripcion,
+            @RequestParam(value = "subidoPor", required = false) String subidoPor,
+            @RequestParam(value = "lote", required = false) String lote) {
+
+        if (archivos == null || archivos.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Seleccione al menos un archivo"));
+        }
+        if (!categoria.equals(LogtagDocumentoServicio.CATEGORIA_LOGTAG) &&
+            !categoria.equals(LogtagDocumentoServicio.CATEGORIA_SENSORES)) {
+            return ResponseEntity.badRequest()
+                .body(Map.of("error", "Categoría inválida. Use LOGTAG o SENSORES"));
+        }
+
+        List<Map<String, Object>> resultados = new java.util.ArrayList<>();
+        for (MultipartFile archivo : archivos) {
+            try {
+                if (archivo.isEmpty()) {
+                    resultados.add(Map.of("exito", false, "nombreArchivo",
+                        archivo.getOriginalFilename() == null ? "" : archivo.getOriginalFilename(),
+                        "error", "El archivo está vacío"));
+                    continue;
+                }
+                LogtagDocumento documento = servicio.subirDocumento(
+                    archivo, ensayoId, categoria, descripcion,
+                    subidoPor != null ? subidoPor : "Sistema", lote);
+                resultados.add(Map.of("exito", true, "documento", documento));
+            } catch (Exception e) {
+                logger.error("Error al subir documento {}", archivo.getOriginalFilename(), e);
+                resultados.add(Map.of("exito", false,
+                    "nombreArchivo", archivo.getOriginalFilename() == null ? "" : archivo.getOriginalFilename(),
+                    "error", e.getMessage() == null ? "Error al procesar el archivo" : e.getMessage()));
+            }
+        }
+
+        return ResponseEntity.ok(Map.of("resultados", resultados));
+    }
     
     /**
      * GET /api/logtag - Listar todos los documentos

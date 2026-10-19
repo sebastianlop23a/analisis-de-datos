@@ -252,12 +252,12 @@ async function actualizarMaquina(id, datos) {
 
 async function eliminarMaquina(id) {
     try {
-        await api.delete(`${API_CONFIG.ENDPOINTS.MAQUINAS}/${id}`);
-        showToast('✓ Máquina eliminada', 'success');
+        const resultado = await api.delete(`${API_CONFIG.ENDPOINTS.MAQUINAS}/${id}`);
+        showToast(resultado.mensaje || '✓ Máquina eliminada', 'success');
         return true;
     } catch (error) {
         console.error('Error al eliminar máquina:', error);
-        showToast('Error al eliminar máquina', 'error');
+        showToast('Error al eliminar máquina: ' + error.message, 'error');
         return false;
     }
 }
@@ -782,6 +782,26 @@ async function subirLogtag(archivo, ensayoId, categoria, descripcion = '', subid
         console.error('Error subiendo documento logtag:', error);
         throw error;
     }
+}
+
+async function subirLogtags(archivos, ensayoId, categoria, descripcion = '', subidoPor = 'Sistema', lote = '') {
+    const formData = new FormData();
+    archivos.forEach(archivo => formData.append('archivos', archivo));
+    if (ensayoId) formData.append('ensayoId', ensayoId);
+    formData.append('categoria', categoria);
+    if (descripcion) formData.append('descripcion', descripcion);
+    if (subidoPor) formData.append('subidoPor', subidoPor);
+    if (lote) formData.append('lote', lote);
+
+    const response = await fetch(`${API_CONFIG.BASE_URL}/logtag/lote`, {
+        method: 'POST',
+        body: formData
+    });
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${response.status}`);
+    }
+    return await response.json();
 }
 
 /**

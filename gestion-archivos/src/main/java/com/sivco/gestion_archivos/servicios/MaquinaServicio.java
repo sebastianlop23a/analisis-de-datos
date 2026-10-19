@@ -81,15 +81,19 @@ public class MaquinaServicio {
     }
     
     @Transactional
-    public void eliminarMaquina(Long id) {
-        // Comprobar si hay ensayos asociados a la máquina antes de eliminar
+    public String eliminarMaquina(Long id) {
         Objects.requireNonNull(id);
+        Maquina maquina = maquinaRepositorio.findById(id)
+            .orElseThrow(() -> new RuntimeException("Máquina no encontrada"));
         var ensayos = ensayoRepositorio.findByMaquinaId(id);
         if (ensayos != null && !ensayos.isEmpty()) {
-            throw new RuntimeException("No se puede eliminar la máquina: existen ensayos asociados. Elimine o finalice primero los ensayos.");
+            maquina.setActiva(false);
+            maquinaRepositorio.save(maquina);
+            return "La máquina se desactivó porque tiene ensayos asociados; el historial se conservó.";
         }
 
-        maquinaRepositorio.deleteById(id);
+        maquinaRepositorio.delete(maquina);
+        return "Máquina eliminada.";
     }
     
     private void validarLimites(Maquina maquina) {

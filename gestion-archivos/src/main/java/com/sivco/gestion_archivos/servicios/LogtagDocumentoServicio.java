@@ -62,6 +62,8 @@ public class LogtagDocumentoServicio {
         String contenidoTexto = null;
         Set<String> sensoresDetectados = new HashSet<>();
         int datosProcesados = 0;
+        String problemaProcesamiento = null;
+        String nombreArchivo = archivo.getOriginalFilename() == null ? "" : archivo.getOriginalFilename();
 
         // Crear y guardar entidad documento primero para poder marcar los datos con su id
         LogtagDocumento documento = new LogtagDocumento();
@@ -81,7 +83,7 @@ public class LogtagDocumentoServicio {
         // Guardar documento inicial (marcado no procesado)
         documento = repositorio.save(documento);
         
-        if (archivo.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
+        if (nombreArchivo.toLowerCase().endsWith(".pdf")) {
             try {
                 contenidoTexto = extraerTextoPDF(archivo);
                 sensoresDetectados = detectarSensoresEnTexto(contenidoTexto);
@@ -98,63 +100,73 @@ public class LogtagDocumentoServicio {
                 logger.info("Sensores detectados en documento: {}", sensoresDetectados);
                 
                 // Si es LOGTAG y tiene ensayo, procesar los datos
-                    if (CATEGORIA_LOGTAG.equals(categoriaSeleccionada) && ensayoId != null) {
+                if (CATEGORIA_LOGTAG.equals(categoriaSeleccionada) && ensayoId != null) {
                     logger.info("Procesando datos del PDF logtag para ensayo: {}", ensayoId);
                     try {
                         // Usar el mismo método de carga de PDF pero para formato logtag
-                            List<DatoEnsayoTemporal> datos = cargaDatosServicio.cargarDatosPdfSivcoLogger(archivo, ensayoId);
-                            if (datos != null && !datos.isEmpty()) {
-                                datosProcesados = datos.size();
-                                // Marcar cada dato con referencia al documento para poder filtrarlo después
-                                for (DatoEnsayoTemporal d : datos) {
-                                    d.setFuente("DOC:" + documento.getId() + "|" + documento.getNombreArchivo());
-                                }
-                                // Guardar los datos en el ensayo
-                                cargaDatosServicio.guardarDatosTemporalesBatch(ensayoId, datos);
-                                logger.info("Datos procesados y guardados: {} registros", datosProcesados);
+                        List<DatoEnsayoTemporal> datos = cargaDatosServicio.cargarDatosPdfSivcoLogger(archivo, ensayoId);
+                        datosProcesados = guardarDatosDocumento(documento, ensayoId, datos, sensoresDetectados);
+                        if (datosProcesados == 0) {
+                            problemaProcesamiento = "El PDF se guardó, pero no contiene mediciones reconocibles para el formato SIVCO-LOGGER.";
+                        } else {
+                            logger.info("Datos procesados y guardados: {} registros", datosProcesados);
                             }
                     } catch (Exception e) {
                         logger.warn("No se pudieron procesar los datos del PDF: {}", e.getMessage());
+                        problemaProcesamiento = "No se pudieron analizar las mediciones del PDF: " + e.getMessage();
                     }
+                } else if (CATEGORIA_LOGTAG.equals(categoriaSeleccionada)) {
+                    problemaProcesamiento = "Selecciona un ensayo para analizar este documento.";
                 }
                 
             } catch (Exception e) {
                 logger.warn("No se pudo extraer texto del PDF: {}", e.getMessage());
+                problemaProcesamiento = "No se pudo extraer texto del PDF: " + e.getMessage();
             }
         }
-        else if (archivo.getOriginalFilename().toLowerCase().endsWith(".xlsx") ||
-                 archivo.getOriginalFilename().toLowerCase().endsWith(".xls") ||
-                 archivo.getOriginalFilename().toLowerCase().endsWith(".xlsm")) {
+        else if (nombreArchivo.toLowerCase().endsWith(".xlsx") ||
+                 nombreArchivo.toLowerCase().endsWith(".xls") ||
+                 nombreArchivo.toLowerCase().endsWith(".xlsm")) {
             // Procesar Excel: delegar a CargaDatosServicio (nuevo soporte Excel)
             try {
-                List<DatoEnsayoTemporal> datos = cargaDatosServicio.cargarDatos(archivo, ensayoId, new HashSet<>());
-                if (datos != null && !datos.isEmpty()) {
-                    datosProcesados = datos.size();
-                    // extraer sensores detectados desde los datos
-                    for (DatoEnsayoTemporal d : datos) {
-                        if (d.getSensor() != null && !d.getSensor().isEmpty()) {
-                            sensoresDetectados.add(d.getSensor().toLowerCase());
-                        }
-                        // Marcar fuente con documento
-                        d.setFuente("DOC:" + documento.getId() + "|" + documento.getNombreArchivo());
+                if (ensayoId == null) {
+                    if (CATEGORIA_LOGTAG.equals(categoriaSeleccionada)) {
+                        problemaProcesamiento = "Selecciona un ensayo para analizar este documento.";
                     }
-                    // Intentar detectar sensor también desde el nombre del archivo (ej: "sensor  1.xlsx", "sensor 2.xls")
+                } else {
+                    List<DatoEnsayoTemporal> datos = cargaDatosServicio.cargarDatos(archivo, ensayoId, new HashSet<>());
+                    datosProcesados = guardarDatosDocumento(documento, ensayoId, datos, sensoresDetectados);
+                    if (datosProcesados == 0 && CATEGORIA_LOGTAG.equals(categoriaSeleccionada)) {
+                        problemaProcesamiento = "El archivo Excel se guardó, pero no se encontraron filas de mediciones reconocibles.";
+                    }
                     try {
-                        String sensorFromName = detectarSensorDesdeNombreArchivoRobusto(archivo.getOriginalFilename());
+                        String sensorFromName = detectarSensorDesdeNombreArchivoRobusto(nombreArchivo);
                         if (sensorFromName != null && !sensorFromName.isEmpty()) {
                             sensoresDetectados.add(sensorFromName);
-                            logger.info("Sensor detectado desde nombre de archivo (Excel): {}", sensorFromName);
                         }
                     } catch (Exception e) {
                         logger.debug("No se pudo detectar sensor desde el nombre del archivo Excel: {}", e.getMessage());
                     }
-                    logger.info("Sensores detectados desde Excel: {}", sensoresDetectados);
-                    // guardar datos
-                    cargaDatosServicio.guardarDatosTemporalesBatch(ensayoId, datos);
                     logger.info("Datos EXCEL procesados y guardados: {} registros", datosProcesados);
                 }
             } catch (Exception e) {
                 logger.warn("No se pudieron procesar los datos del Excel: {}", e.getMessage());
+                problemaProcesamiento = "No se pudieron analizar las mediciones del Excel: " + e.getMessage();
+            }
+        } else if (nombreArchivo.toLowerCase().endsWith(".csv") && CATEGORIA_LOGTAG.equals(categoriaSeleccionada)) {
+            if (ensayoId == null) {
+                problemaProcesamiento = "Selecciona un ensayo para analizar este documento.";
+            } else {
+                try {
+                    List<DatoEnsayoTemporal> datos = cargaDatosServicio.cargarDatosCSV(archivo, ensayoId, new HashSet<>());
+                    datosProcesados = guardarDatosDocumento(documento, ensayoId, datos, sensoresDetectados);
+                    if (datosProcesados == 0) {
+                        problemaProcesamiento = "El archivo CSV se guardó, pero no se encontraron filas de mediciones reconocibles.";
+                    }
+                } catch (Exception e) {
+                    logger.warn("No se pudieron procesar los datos del CSV: {}", e.getMessage());
+                    problemaProcesamiento = "No se pudieron analizar las mediciones del CSV: " + e.getMessage();
+                }
             }
         }
         
@@ -176,6 +188,10 @@ public class LogtagDocumentoServicio {
         // Agregar info de procesamiento al mensaje
         if (datosProcesados > 0) {
             mensajeVerificacion += " | Datos procesados: " + datosProcesados;
+        } else if (problemaProcesamiento != null) {
+            mensajeVerificacion = "ADVERTENCIA: " + problemaProcesamiento;
+        } else if (CATEGORIA_LOGTAG.equals(categoriaSeleccionada)) {
+            mensajeVerificacion = "ADVERTENCIA: Documento guardado, pero el análisis no se ejecutó para este formato.";
         }
 
         // Actualizar documento con datos finales
@@ -183,9 +199,25 @@ public class LogtagDocumentoServicio {
         documento.setContenidoTexto(contenidoTexto);
         documento.setNotas(mensajeVerificacion);
         documento.setSensoresDetectados(sensoresDetectados.isEmpty() ? null : String.join(",", sensoresDetectados));
-        documento.setProcesado(true);
+        documento.setProcesado(!CATEGORIA_LOGTAG.equals(categoriaSeleccionada) || datosProcesados > 0);
 
         return repositorio.save(documento);
+    }
+
+    private int guardarDatosDocumento(LogtagDocumento documento, Long ensayoId,
+                                      List<DatoEnsayoTemporal> datos, Set<String> sensoresDetectados) {
+        if (datos == null || datos.isEmpty()) {
+            return 0;
+        }
+
+        for (DatoEnsayoTemporal dato : datos) {
+            if (dato.getSensor() != null && !dato.getSensor().isEmpty()) {
+                sensoresDetectados.add(dato.getSensor().toLowerCase());
+            }
+            dato.setFuente("DOC:" + documento.getId() + "|" + documento.getNombreArchivo());
+        }
+        cargaDatosServicio.guardarDatosTemporalesBatch(ensayoId, datos);
+        return datos.size();
     }
     
     /**

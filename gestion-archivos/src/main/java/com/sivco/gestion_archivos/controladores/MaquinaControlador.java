@@ -70,10 +70,9 @@ public class MaquinaControlador {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarMaquina(@PathVariable Long id) {
         try {
-            maquinaServicio.eliminarMaquina(id);
-            return ResponseEntity.noContent().build();
+            String mensaje = maquinaServicio.eliminarMaquina(id);
+            return ResponseEntity.ok(java.util.Map.of("mensaje", mensaje));
         } catch (RuntimeException e) {
-            // Si hay ensayos asociados o cualquier otra razón, devolver 400 con mensaje
             return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
     }
