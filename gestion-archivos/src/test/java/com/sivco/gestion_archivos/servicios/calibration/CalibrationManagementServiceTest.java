@@ -1,6 +1,8 @@
 package com.sivco.gestion_archivos.servicios.calibration;
 
 import com.sivco.gestion_archivos.modelos.calibration.CalibrationPoint;
+import com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel;
+import com.sivco.gestion_archivos.modelos.calibration.RegressionModelType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -63,6 +65,9 @@ class CalibrationManagementServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 service.uploadAndProcessCalibration(1L,
                         new org.springframework.mock.web.MockMultipartFile("file", "f.csv", "text/plain", csv.getBytes()),
-                        RegressionModelType.LINEAR, null, null));
+                        CalibrationChannel.TEMPERATURE,
+                        RegressionModelType.LINEAR,
+                        null,
+                        null));
     }
 }

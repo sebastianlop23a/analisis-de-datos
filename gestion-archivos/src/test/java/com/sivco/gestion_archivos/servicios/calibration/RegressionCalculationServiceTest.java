@@ -4,13 +4,11 @@ import com.sivco.gestion_archivos.modelos.calibration.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 @DisplayName("Regression Calculation Service Tests")
 class RegressionCalculationServiceTest {
     
@@ -211,8 +209,8 @@ class RegressionCalculationServiceTest {
         
         session.setRegressionModels(Collections.singletonList(linearModel));
         
-        // y = 2*x + 5
+        // The model returns an offset of 2*x + 5, which is added to the reading.
         Double corrected = session.applyCorrection(10.0);
-        assertEquals(25.0, corrected, 0.01);
+        assertEquals(35.0, corrected, 0.01);
     }
 }

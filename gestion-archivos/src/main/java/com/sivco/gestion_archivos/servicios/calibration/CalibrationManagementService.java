@@ -815,8 +815,8 @@ public class CalibrationManagementService {
                     if (parts.length <= j) continue;
                     checked++;
                     try {
-                        Double.parseDouble(parts[i]);
-                        Double.parseDouble(parts[j]);
+                        parseNumber(parts[i]);
+                        parseNumber(parts[j]);
                         count++;
                     } catch (Exception e) {
                         // not a pair for this row
@@ -842,8 +842,8 @@ public class CalibrationManagementService {
                     rowNum++;
                     continue;
                 }
-                double patronReading = Double.parseDouble(parts[bestI]);
-                double instrumentReading = Double.parseDouble(parts[bestJ]);
+                double patronReading = parseNumber(parts[bestI]);
+                double instrumentReading = parseNumber(parts[bestJ]);
 
                 CalibrationPoint point = new CalibrationPoint();
                 point.setPatronReading(patronReading);

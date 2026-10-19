@@ -1,7 +1,8 @@
 package com.sivco.gestion_archivos.controladores;
 
-import com.sivco.gestion_archivos.servicios.calibration.CalibrationManagementService;
+import com.sivco.gestion_archivos.modelos.calibration.CalibrationChannel;
 import com.sivco.gestion_archivos.modelos.calibration.RegressionModelType;
+import com.sivco.gestion_archivos.servicios.calibration.CalibrationManagementService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,13 @@ class CalibrationControllerTest {
     @DisplayName("Uploading a file with insufficient points returns 400 and message")
     void uploadInsufficientPoints() throws Exception {
         // simulate service throwing the validation exception
-        when(calibrationManagementService.uploadAndProcessCalibration(anyLong(), any(), any(), anyString(), anyString()))
+        when(calibrationManagementService.uploadAndProcessCalibration(
+                anyLong(),
+                any(),
+                nullable(CalibrationChannel.class),
+                nullable(RegressionModelType.class),
+                nullable(String.class),
+                nullable(String.class)))
                 .thenThrow(new IllegalArgumentException("Se requieren al menos 2 puntos de calibración para calcular un modelo de regresión"));
 
         MockMultipartFile file = new MockMultipartFile(
@@ -41,8 +48,7 @@ class CalibrationControllerTest {
                 "10,20\n".getBytes());
 
         mockMvc.perform(MockMvcRequestBuilders.multipart("/api/calibrations/upload/1")
-                        .file(file)
-                        .param("modelType", RegressionModelType.LINEAR.name()))
+                        .file(file))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Se requieren al menos 2 puntos de calibración para calcular un modelo de regresión"));
     }
